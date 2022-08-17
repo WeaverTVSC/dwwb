@@ -1,0 +1,15 @@
+[package]
+name = "dwwb"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pandoc = "^0.8"
+regex = "^1.5"
+serde = { version = "^1.0", features = [ "derive" ] }
+serde_yaml = "^0.8"
+clap = { version = "^3.2", features = [ "derive" ] }
+globwalk = "^0.8"
+url-escape = "^0.1"
+tempfile = "^3.3"
+lazy_static = "^1.4"
