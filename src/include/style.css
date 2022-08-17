@@ -1,0 +1,35 @@
+header {
+    margin-left: 325px;
+    margin-top: 10px;
+    padding: 50px;
+}
+
+#sidebar {
+    display: block;
+    position: fixed;
+    width: 270px;
+    height: 100%;
+    top: 0px;
+    left: 5px;
+    margin: unset;
+    border-left-width: 7px;
+    border-left-color: black;
+    border-left-style: solid;
+    padding: 0px 10px;
+    overflow-y: scroll;
+    scrollbar-width: thin;
+    scrollbar-color: grey black;
+}
+
+#TOC {
+    width: fit-content;
+    margin: 0 auto;
+    padding-top: 0;
+    padding-bottom: 2em;
+}
+
+#content {
+    margin-left: 325px;
+    margin-right: 10%;
+    padding-bottom: 200px;
+}

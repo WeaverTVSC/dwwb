@@ -26,10 +26,13 @@ pub fn create_new(path: &Path) -> Result<(), String> {
         .map_err(|e| format!("Error while creating the articles directory: {e}"))?;
 
     let cfg = file(CFG_FILENAME, "configuration")?;
-    let _css = file("style.css", "stylesheet")?;
+    let mut css = file("style.css", "stylesheet")?;
     let _script = file("main.js", "script")?;
     let mut index = file("index.md", "index")?;
     let mut article = file("articles/example.md", "example article")?;
+
+    css.write_all(include_bytes!("include/style.css"))
+        .map_err(|e| format!("Error while writing the style file: {e}"))?;
 
     write!(
         index,

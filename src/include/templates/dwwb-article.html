@@ -60,7 +60,7 @@
   </header>
   $endif$
   $if(sidebar-data)$
-  <div class="sidebar">
+  <div id="sidebar">
     $sidebar()$
     $endif$
     $if(toc)$
@@ -74,7 +74,7 @@
     $if(sidebar-data)$
   </div>
   $endif$
-  <div class="content">
+  <div id="content">
     $body$
   </div>
   $for(include-after)$
