@@ -53,6 +53,7 @@ pub fn create_new(path: &Path) -> Result<(), String> {
             index: "index.md".to_string(),
             css: "style.css".to_string(),
             script: "main.js".to_string(),
+            sub_articles_title: "Sub-Articles".to_string(),
             toc_title: "Table of Contents".to_string(),
             toc_depth: 3,
             output_dir: PathBuf::from("html"),

@@ -8,9 +8,8 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
-use build::*;
-
-use crate::new::create_new;
+use build::build_project;
+use new::create_new;
 
 pub const CFG_FILENAME: &str = "dwwb.yaml";
 
@@ -24,6 +23,7 @@ pub struct Cfg {
     index: String,
     css: String,
     script: String,
+    sub_articles_title: String,
     toc_title: String,
     toc_depth: u32,
     output_dir: PathBuf,
@@ -94,6 +94,10 @@ fn main() -> ExitCode {
             }
         },
         Build => {
+            if !PathBuf::from(CFG_FILENAME).exists() {
+                eprintln!("No configuration file '{CFG_FILENAME}' found!");
+                return ExitCode::FAILURE;
+            }
             let cfg = uw!(File::open(CFG_FILENAME), "reading the configuration file");
             let cfg = uw!(
                 serde_yaml::from_reader(cfg),

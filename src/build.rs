@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use globwalk::{DirEntry, FileType};
-use pandoc::{PandocError, PandocOption, PandocOutput};
+use pandoc::{PandocOption, PandocOutput};
 use regex::Regex;
 use serde_yaml::Mapping;
 use tempfile::{NamedTempFile, TempDir};
@@ -183,6 +183,10 @@ pub fn build_project(cfg: Cfg, args: Args) -> ExitCode {
             Standalone,
             TableOfContents,
             TableOfContentsDepth(cfg.toc_depth),
+            Var(
+                "sub-articles-title".to_string(),
+                Some(cfg.sub_articles_title.to_string()),
+            ),
             Var("toc-title".to_string(), Some(cfg.toc_title.to_string())),
             Var("script-file".to_string(), Some(cfg.script)),
         ]
@@ -201,34 +205,58 @@ fn pandoc_write(
     args: &Args,
     options: &[PandocOption],
     root: &ArticleSidebarData,
-) -> Result<Vec<PandocOutput>, PandocError> {
+) -> Result<Vec<PandocOutput>, String> {
     fn pandoc_write_internal(
         args: &Args,
         options: &[PandocOption],
         node: &ArticleSidebarData,
         depth: i32,
         outputs: &mut Vec<PandocOutput>,
-    ) -> Result<(), PandocError> {
+    ) -> Result<(), String> {
         if let Some(md_path) = &node.md_file_path {
             let html_path = node.html_file_path.as_ref().unwrap();
             let root_url = "../".repeat(depth.max(0) as usize);
 
+            let mut defaults_data = Mapping::new();
+            defaults_data.insert(
+                "variables".into(),
+                Mapping::from_iter([(
+                    "current-sub-articles".into(),
+                    serde_yaml::to_value(&node.sub_articles).unwrap(),
+                )])
+                .into(),
+            );
+
+            let article_defaults = NamedTempFile::new().map_err(|e| {
+                format!(
+                    "Failed to create the defaults file for the article '{}' ('{}'): {e}",
+                    node.title,
+                    md_path.display()
+                )
+            })?;
+            serde_yaml::to_writer(&article_defaults, &defaults_data).map_err(|e| {
+                format!(
+                    "Failed to serialize the defaults file for the article '{}' ('{}'): {e}",
+                    node.title,
+                    md_path.display()
+                )
+            })?;
+
             let mut pd = pandoc::new();
             pd.add_options(options)
+                .add_option(PandocOption::Defaults(
+                    article_defaults.path().to_path_buf(),
+                ))
                 .set_variable("base-url", &root_url)
                 .add_input(&md_path)
                 .set_output(pandoc::OutputKind::File(html_path.to_path_buf()))
                 .add_filter(variable_replacer_filter(root_url));
 
             let dir_path = html_path.parent().unwrap();
-            if let Err(e) = std::fs::create_dir_all(dir_path) {
-                eprintln!(
-                    "WARNING: Failed to create the path '{}': {e}",
-                    dir_path.display()
-                )
-            };
+            std::fs::create_dir_all(dir_path)
+                .map_err(|e| format!("Failed to create the path '{}': {e}", dir_path.display()))?;
 
-            outputs.push(pd.execute()?);
+            outputs.push(pd.execute().map_err(|e| format!("pandoc error: {e}"))?);
             args.msg(format!("Processed \"{}\"", md_path.display()));
         }
 
