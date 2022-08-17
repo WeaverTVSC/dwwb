@@ -19,9 +19,16 @@ use sidebar::ArticleSidebarData;
 
 pub fn build_project(cfg: Cfg, args: Args) -> ExitCode {
     let input_walker = uw!(
-        globwalk::glob_builder("/**/*")
-            .file_type(FileType::FILE)
-            .build(),
+        globwalk::GlobWalkerBuilder::from_patterns(
+            ".",
+            &[
+                "/**/*",
+                &format!("!{}", CFG_FILENAME),
+                &format!("!{}/**", cfg.output_dir.display())
+            ]
+        )
+        .file_type(FileType::FILE)
+        .build(),
         "reading the input path"
     );
 
@@ -37,19 +44,12 @@ pub fn build_project(cfg: Cfg, args: Args) -> ExitCode {
     for entry_res in input_walker {
         let entry = uw!(entry_res, "traversing the input directory");
 
-        if entry.file_type().is_dir()
-            && entry.path().canonicalize().unwrap() == cfg.output_dir.canonicalize().unwrap()
-        {
-            // do nothing for the html output folder
-            continue;
-        }
-
         if let Some("md" | "markdown") = entry.path().extension().and_then(|s| s.to_str()) {
             if let Err(e) = read_md_file(entry, &mut dirs_to_sb_data) {
                 eprintln!("{e}");
                 return ExitCode::FAILURE;
             }
-        } else if entry.file_name().to_str() != Some(CFG_FILENAME) {
+        } else {
             // copy other files
             let from = entry.path();
             let to = cfg.output_dir.join(from);
@@ -218,7 +218,7 @@ fn pandoc_write(
                 .set_variable("base-url", &root_url)
                 .add_input(&md_path)
                 .set_output(pandoc::OutputKind::File(html_path.to_path_buf()))
-                .add_filter(make_pandoc_filter(root_url));
+                .add_filter(variable_replacer_filter(root_url));
 
             let dir_path = html_path.parent().unwrap();
             if let Err(e) = std::fs::create_dir_all(dir_path) {
