@@ -206,7 +206,7 @@ fn pandoc_write(
     options: &[PandocOption],
     root: &ArticleSidebarData,
 ) -> Result<Vec<PandocOutput>, String> {
-    fn pandoc_write_internal(
+    fn pandoc_write_recursive(
         args: &Args,
         options: &[PandocOption],
         node: &ArticleSidebarData,
@@ -262,13 +262,13 @@ fn pandoc_write(
 
         // generate all of the child articles
         for n in &node.sub_articles {
-            pandoc_write_internal(args, options, n, depth + 1, outputs)?;
+            pandoc_write_recursive(args, options, n, depth + 1, outputs)?;
         }
         Ok(())
     }
 
     let mut outputs = Vec::new();
-    pandoc_write_internal(args, options, root, -1, &mut outputs)?;
+    pandoc_write_recursive(args, options, root, -1, &mut outputs)?;
     Ok(outputs)
 }
 
