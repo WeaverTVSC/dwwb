@@ -2,11 +2,13 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::ops::{Index, IndexMut};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use globwalk::DirEntry;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+
+use crate::Cfg;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -33,7 +35,7 @@ impl ArticleSidebarData {
     /// Generates the data needed for the sidebar from the yaml metadata block of the given article
     ///
     /// Will not set the `sub_articles` member.
-    pub fn from_article_meta(entry: DirEntry) -> Result<Self, String> {
+    pub fn from_article_meta(cfg: &Cfg, entry: DirEntry) -> Result<Self, String> {
         let mut file =
             File::open(entry.path()).map_err(|e| format!("Error opening a file: {e}"))?;
         let mut contents = String::new();
@@ -41,7 +43,7 @@ impl ArticleSidebarData {
             .map_err(|e| format!("Error reading a file: {e}"))?;
 
         let md_path = entry.path();
-        let html_path = Path::new("html/").join(md_path).with_extension("html");
+        let html_path = cfg.output_dir.join(md_path).with_extension("html");
 
         // transform the path to an url
         let mut link_it = html_path.components().skip(1); // skip the root folder
@@ -56,7 +58,7 @@ impl ArticleSidebarData {
             link_url += comp.as_os_str().to_str().unwrap();
         }
 
-        let r = Regex::new(r"(?msx)(\A---\s*?$.*?)^[-.]{3}\s*?$").unwrap();
+        let r = Regex::new(r"(?msx)(\A---\s*?$.*?)^(?:---|\.\.\.)\s*?$").unwrap();
         let data = r
             .captures(&contents)
             .and_then(|c| c.get(1)) // chop off the end lines/dots
@@ -85,14 +87,14 @@ impl ArticleSidebarData {
         Ok(to_return)
     }
 
-    /// Returns a reference to the subarticle with the given id if it exists
+    /// Returns a reference to the sub-article with the given id if it exists
     pub fn get(&self, sub_article_id: &str) -> Option<&ArticleSidebarData> {
         self.sub_articles
             .iter()
             .find(|sub| sub.id == sub_article_id)
     }
 
-    /// Returns a mutable reference to the subarticle with the given id if it exists
+    /// Returns a mutable reference to the sub-article with the given id if it exists
     pub fn get_mut(&mut self, sub_article_id: &str) -> Option<&mut ArticleSidebarData> {
         self.sub_articles
             .iter_mut()

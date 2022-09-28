@@ -45,7 +45,7 @@ pub fn build_project(cfg: Cfg, args: Args) -> ExitCode {
         let entry = uw!(entry_res, "traversing the input directory");
 
         if let Some("md" | "markdown") = entry.path().extension().and_then(|s| s.to_str()) {
-            if let Err(e) = read_md_file(entry, &mut dirs_to_sb_data) {
+            if let Err(e) = read_md_file(&cfg, entry, &mut dirs_to_sb_data) {
                 eprintln!("{e}");
                 return ExitCode::FAILURE;
             }
@@ -137,16 +137,16 @@ pub fn build_project(cfg: Cfg, args: Args) -> ExitCode {
 
     // create the temporary files
     macro_rules! load_included_file {
-        ($path: expr, $descr: expr) => {{
+        ($path: expr, $description: expr) => {{
             let tmp_path = dir.path().join(Path::new($path).file_name().unwrap());
 
             let mut output_file = uw!(
                 File::create(&tmp_path),
-                format!("creating the {} file", $descr)
+                format!("creating the {} file", $description)
             );
             uw!(
                 output_file.write_all(include_bytes!($path)),
-                format!("writing the {} file", $descr)
+                format!("writing the {} file", $description)
             );
             tmp_path
         }};
@@ -273,10 +273,11 @@ fn pandoc_write(
 }
 
 fn read_md_file(
+    cfg: &Cfg,
     entry: DirEntry,
     dirs_to_metadatas: &mut HashMap<PathBuf, Vec<ArticleSidebarData>>,
 ) -> Result<(), String> {
-    let sb_data = ArticleSidebarData::from_article_meta(entry)?;
+    let sb_data = ArticleSidebarData::from_article_meta(cfg, entry)?;
 
     let parent = sb_data
         .md_file_path

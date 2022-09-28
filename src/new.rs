@@ -4,6 +4,7 @@ use std::{fs, fs::File, path::Path};
 
 use crate::{Cfg, CFG_FILENAME};
 
+/// Creates a new wiki project
 pub fn create_new(path: &Path) -> Result<(), String> {
     if path.exists() {
         return Err(format!("The directory '{}' exists already", path.display()));
@@ -17,9 +18,9 @@ pub fn create_new(path: &Path) -> Result<(), String> {
 
     fs::create_dir_all(path).map_err(|e| format!("Error while creating directories: {e}"))?;
 
-    let file = |filename, descr| {
+    let file = |filename, description| {
         File::create(path.join(filename))
-            .map_err(|e| format!("Error while creating the {descr} file: {e}"))
+            .map_err(|e| format!("Error while creating the {description} file: {e}"))
     };
 
     fs::create_dir(path.join("articles"))
