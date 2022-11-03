@@ -13,10 +13,6 @@ use new::create_new;
 
 pub const CFG_FILENAME: &str = "dwwb.yaml";
 
-fn parse_path(s: &str) -> PathBuf {
-    PathBuf::from(s.trim())
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Cfg {
     name: String,
@@ -34,15 +30,14 @@ pub struct Cfg {
 /// Requires for the Pandoc YAML metadata block to be at the very beginning of each article,
 /// with at least the `title` field present.
 #[derive(Debug, Clone, Parser)]
-#[clap()]
 pub struct Args {
     /// Whether the progress should be outputted to the stdout or not
     ///
     /// Does not hide the error messages.
-    #[clap(short, long, parse(from_flag))]
+    #[arg(short, long)]
     quiet: bool,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     subcommand: DwwbCommand,
 }
 
@@ -58,13 +53,17 @@ impl Args {
 #[derive(Debug, Clone, Subcommand)]
 enum DwwbCommand {
     /// Creates a new example wiki project
+    #[command()]
     New {
-        #[clap(parse(from_str=parse_path))]
+        /// The name or full path of the new project directory
+        #[arg()]
         path: PathBuf,
     },
     /// Builds the wiki project into a html site
+    #[command()]
     Build,
     /// Cleans the built html site (UNIMPLEMENTED)
+    #[command()]
     Clean,
 }
 
