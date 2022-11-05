@@ -73,8 +73,7 @@ macro_rules! uw {
         match $e {
             Ok(x) => x,
             Err(e) => {
-                eprintln!("Error while {}: {}", $msg, e);
-                return ExitCode::FAILURE;
+                return Err(format!("Error while {}: {}", $msg, e));
             }
         }
     };
@@ -92,18 +91,51 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
-        Build => {
-            if !PathBuf::from(CFG_FILENAME).exists() {
-                eprintln!("No configuration file '{CFG_FILENAME}' found!");
-                return ExitCode::FAILURE;
+        Build => match get_conf() {
+            Ok(cfg) => {
+                if let Err(e) = build_project(cfg, args) {
+                    eprintln!("Build error: {e}");
+                    ExitCode::FAILURE
+                } else {
+                    ExitCode::SUCCESS
+                }
             }
-            let cfg = uw!(File::open(CFG_FILENAME), "reading the configuration file");
-            let cfg = uw!(
-                serde_yaml::from_reader(cfg),
-                "deserializing the configuration file"
-            );
-            build_project(cfg, args) // TODO: make this return an error like create_new
-        }
-        Clean => ExitCode::SUCCESS, // TODO
+            Err(e) => {
+                eprintln!("Configuration error: {e}");
+                ExitCode::FAILURE
+            }
+        },
+        Clean => match get_conf() {
+            Ok(cfg) => {
+                println!(
+                    "Removing the output directory '{}'...",
+                    cfg.output_dir.display()
+                );
+                if let Err(e) = std::fs::remove_dir_all(&cfg.output_dir) {
+                    eprintln!("Error while removing the output directory: {e}");
+                    ExitCode::FAILURE
+                } else {
+                    println!("All done");
+                    ExitCode::SUCCESS
+                }
+            }
+            Err(e) => {
+                eprintln!("Configuration error: {e}");
+                ExitCode::FAILURE
+            }
+        },
     }
+}
+
+fn get_conf() -> Result<Cfg, String> {
+    if !PathBuf::from(CFG_FILENAME).exists() {
+        return Err(format!("No configuration file '{CFG_FILENAME}' found!"));
+    }
+
+    let cfg = uw!(File::open(CFG_FILENAME), "reading the configuration file");
+    let cfg = uw!(
+        serde_yaml::from_reader(cfg),
+        "deserializing the configuration file"
+    );
+    Ok(cfg)
 }

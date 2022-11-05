@@ -9,3 +9,5 @@ The currently implemented subcommands are:
     * Creates a new empty wiki project
 * Build
     * Converts the markdown files into html files, and copies over the other files
+* Clean
+    * Removes the html output directory

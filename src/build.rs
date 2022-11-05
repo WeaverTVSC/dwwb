@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
 
 use globwalk::{DirEntry, FileType};
 use pandoc::{PandocOption, PandocOutput};
@@ -17,7 +16,7 @@ use crate::{uw, Args, Cfg, CFG_FILENAME};
 use filter::*;
 use sidebar::ArticleSidebarData;
 
-pub fn build_project(cfg: Cfg, args: Args) -> ExitCode {
+pub fn build_project(cfg: Cfg, args: Args) -> Result<(), String> {
     let input_walker = uw!(
         globwalk::GlobWalkerBuilder::from_patterns(
             ".",
@@ -45,10 +44,7 @@ pub fn build_project(cfg: Cfg, args: Args) -> ExitCode {
         let entry = uw!(entry_res, "traversing the input directory");
 
         if let Some("md" | "markdown") = entry.path().extension().and_then(|s| s.to_str()) {
-            if let Err(e) = read_md_file(&cfg, entry, &mut dirs_to_sb_data) {
-                eprintln!("{e}");
-                return ExitCode::FAILURE;
-            }
+            read_md_file(&cfg, entry, &mut dirs_to_sb_data)?
         } else {
             // copy other files
             let from = entry.path();
@@ -82,8 +78,7 @@ pub fn build_project(cfg: Cfg, args: Args) -> ExitCode {
             }) {
         r
     } else {
-        eprintln!("The index file, '{}', not found", cfg.index);
-        return ExitCode::FAILURE;
+        return Err(format!("The index file, '{}', not found", cfg.index));
     };
     // construct the rest of the tree
     for (path, meta_vec) in dirs_to_sb_data.drain() {
@@ -198,7 +193,7 @@ pub fn build_project(cfg: Cfg, args: Args) -> ExitCode {
     );
     args.msg(format!("---\n{} files processed.", outputs.len()));
     args.msg("All done");
-    ExitCode::SUCCESS
+    Ok(())
 }
 
 fn pandoc_write(
