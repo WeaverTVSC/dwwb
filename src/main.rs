@@ -107,15 +107,15 @@ fn main() -> ExitCode {
         },
         Clean => match get_conf() {
             Ok(cfg) => {
-                println!(
+                args.msg(format!(
                     "Removing the output directory '{}'...",
                     cfg.output_dir.display()
-                );
+                ));
                 if let Err(e) = std::fs::remove_dir_all(&cfg.output_dir) {
                     eprintln!("Error while removing the output directory: {e}");
                     ExitCode::FAILURE
                 } else {
-                    println!("All done");
+                    args.msg("All done");
                     ExitCode::SUCCESS
                 }
             }
