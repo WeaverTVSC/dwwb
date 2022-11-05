@@ -1,7 +1,10 @@
 [package]
 name = "dwwb"
 version = "0.1.0"
+description = "Dreamweaver's Wiki Builder"
+repository = "https://github.com/DreamweaverOI/dwwb"
 edition = "2021"
+rust-version = "1.65"
 
 [dependencies]
 pandoc = "^0.8"
