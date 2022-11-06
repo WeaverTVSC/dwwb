@@ -13,18 +13,19 @@ use crate::Cfg;
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct ArticleSidebarData {
-    #[serde(default)]
+    #[serde(skip)]
     pub id: String,
+    #[serde(default)]
     pub title: String,
     #[serde(skip)]
     pub md_file_path: Option<PathBuf>,
-    #[serde(default)]
+    #[serde(skip)]
     pub html_file_path: Option<PathBuf>,
-    #[serde(default)]
+    #[serde(skip)]
     pub link_url: String,
     #[serde(default)]
     pub keywords: Vec<String>,
-    #[serde(default)]
+    #[serde(skip)]
     pub sub_articles: Vec<Self>,
     /// The catchall field for all metadata that could not be stored
     #[serde(flatten)]
@@ -58,7 +59,7 @@ impl ArticleSidebarData {
             link_url += comp.as_os_str().to_str().unwrap();
         }
 
-        let r = Regex::new(r"(?msx)(\A---\s*?$.*?)^(?:---|\.\.\.)\s*?$").unwrap();
+        let r = Regex::new(r"(?msx)(?:\A|\r?\n\r?\n)(---\s*?$.*?)^(?:---|\.\.\.)\s*?$").unwrap();
         let data = r
             .captures(&contents)
             .and_then(|c| c.get(1)) // chop off the end lines/dots
@@ -69,6 +70,13 @@ impl ArticleSidebarData {
             .as_str();
 
         let mut to_return: Self = serde_yaml::from_str(data).map_err(|e| format!("{e}"))?;
+        if to_return.title.is_empty() {
+            return Err(format!(
+                "No `title` in the YAML metadata block of file '{}'",
+                md_path.display()
+            ));
+        }
+
         to_return.md_file_path = Some(md_path.to_path_buf());
         to_return.html_file_path = Some(html_path.to_path_buf());
 
@@ -79,10 +87,7 @@ impl ArticleSidebarData {
                 .to_string_lossy()
                 .to_string();
         }
-        if to_return.link_url.is_empty() {
-            to_return.link_url = link_url.to_string();
-        }
-        to_return.link_url = url_escape::encode_fragment(&to_return.link_url).to_string();
+        to_return.link_url = url_escape::encode_fragment(&link_url).to_string();
 
         Ok(to_return)
     }
