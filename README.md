@@ -154,3 +154,6 @@ To get a comprehensive understanding of how the pandoc markdown differs from oth
 * Escaped line breaks
     * A backslash followed by a newline becomes a hard line break, eg. a line like `Hello world!\` becomes `<p>Hello world!<br>...</p>`.
 
+
+## License
+This is free software and released under the GNU General Public License version 3 or greater.

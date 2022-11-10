@@ -5,6 +5,7 @@ description = "Dreamweaver's Wiki Builder"
 repository = "https://github.com/DreamweaverOI/dwwb"
 edition = "2021"
 rust-version = "1.65"
+license = "GPL-3.0-or-later"
 
 [dependencies]
 pandoc = "^0.8"
