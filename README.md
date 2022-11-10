@@ -87,13 +87,15 @@ The current keys of `dwwb.yaml` are:
 
 ## Writing articles
 
-Articles are written by using the [pandoc markdown syntax](https://pandoc.org/MANUAL.html#pandocs-markdown).
-No markdown extensions are added or removed by default, but you can change them in `dwwb.yaml` like with the other pandoc flags and variables.
+Articles are written by using the [pandoc flavored markdown syntax](https://pandoc.org/MANUAL.html#pandocs-markdown).
 
 The file extension of the articles must be either `.md` or `.markdown`.
 
 An article can have sub-articles if they're in a folder with the same name as the main article.
 The index article is an exception.
+
+By default all of the URLs in the markdown files are local to the directory they're located in.
+If you want to refer to the root of the wiki, there is a special pandoc filter that's executed for all articles which replaces all occurrences of the string `%ROOT%` with the path to the root directory.
 
 
 ### The article metadata
@@ -120,9 +122,6 @@ keywords:
 
 
 ### Syntax
-
-By default all of the URLs in the markdown articles are local to the directory they're located in.
-If you want to refer to the root of the wiki, there is a special pandoc filter that's executed for all articles which replaces all occurrences of the string `%ROOT%` with the path to the root directory.
 
 To get a comprehensive understanding of how the pandoc markdown differs from other flavors and to get the most out of pandoc, I encourage you to read the pandoc documentation, but here's a small list of a few noticeable features:
 
