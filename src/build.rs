@@ -169,6 +169,7 @@ pub fn build_project(cfg: Cfg, args: Args) -> Result<(), String> {
         serde_yaml::to_writer(&defaults_file, &defaults_data),
         "serializing the defaults file"
     );
+
     let pandoc_options = {
         use PandocOption::*;
         [
@@ -186,6 +187,7 @@ pub fn build_project(cfg: Cfg, args: Args) -> Result<(), String> {
             Var("script-file".to_string(), Some(cfg.script)),
         ]
     };
+
     args.msg("Processing articles with pandoc...");
     let outputs = uw!(
         pandoc_write(&args, &pandoc_options, &articles_root),

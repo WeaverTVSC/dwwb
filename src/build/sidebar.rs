@@ -6,30 +6,19 @@ use std::path::PathBuf;
 
 use globwalk::DirEntry;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::Cfg;
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
 pub struct ArticleSidebarData {
-    #[serde(skip)]
     pub id: String,
-    #[serde(default)]
     pub title: String,
-    #[serde(skip)]
     pub md_file_path: Option<PathBuf>,
-    #[serde(skip)]
     pub html_file_path: Option<PathBuf>,
-    #[serde(skip)]
     pub link_url: String,
-    #[serde(default)]
     pub keywords: Vec<String>,
-    #[serde(skip)]
     pub sub_articles: Vec<Self>,
-    /// The catchall field for all metadata that could not be stored
-    #[serde(flatten)]
-    pub extra: HashMap<String, serde_yaml::Value>,
 }
 
 impl ArticleSidebarData {
@@ -60,36 +49,58 @@ impl ArticleSidebarData {
         }
 
         let r = Regex::new(r"(?msx)(?:\A|\r?\n\r?\n)(---\s*?$.*?)^(?:---|\.\.\.)\s*?$").unwrap();
-        let data = r
+        let metadata_string = r
             .captures(&contents)
             .and_then(|c| c.get(1)) // chop off the end lines/dots
             .ok_or(format!(
-                "'{}': Expected a YAML metadata block at the start of the document.",
+                "'{}': Expected a YAML metadata block at the start of the document",
                 md_path.display()
             ))?
             .as_str();
 
-        let mut to_return: Self = serde_yaml::from_str(data).map_err(|e| format!("{e}"))?;
-        if to_return.title.is_empty() {
+        let metadata: HashMap<String, serde_yaml::Value> =
+            serde_yaml::from_str(metadata_string).map_err(|e| format!("{e}"))?;
+        if !metadata.contains_key("title") {
             return Err(format!(
                 "No `title` in the YAML metadata block of file '{}'",
                 md_path.display()
             ));
         }
 
-        to_return.md_file_path = Some(md_path.to_path_buf());
-        to_return.html_file_path = Some(html_path.to_path_buf());
-
-        if to_return.id.is_empty() {
-            to_return.id = md_path
-                .file_stem()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string();
+        match &metadata["title"] {
+            serde_yaml::Value::String(title) => Ok(Self {
+                id: md_path
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string(),
+                title: title.to_string(),
+                md_file_path: Some(md_path.to_path_buf()),
+                html_file_path: Some(html_path.to_path_buf()),
+                link_url: url_escape::encode_fragment(&link_url).to_string(),
+                keywords: match metadata.get("keywords") {
+                    Some(serde_yaml::Value::Sequence(seq)) => seq
+                        .iter()
+                        .filter_map(|val| val.as_str())
+                        .map(str::to_string)
+                        .collect(),
+                    Some(val) => {
+                        return Err(format!(
+                            "Expected a YAML sequence as the `keywords` in the metadata of file '{}', instead found {}",
+                            md_path.display(),
+                            yaml_type_to_name(val)
+                        ))
+                    }
+                    _ => vec![],
+                },
+                sub_articles: Default::default(),
+            }),
+            val => Err(format!(
+                "Expected a YAML string as the `title` in the metadata of file '{}', instead found {}",
+                md_path.display(),
+                yaml_type_to_name(val)
+            )),
         }
-        to_return.link_url = url_escape::encode_fragment(&link_url).to_string();
-
-        Ok(to_return)
     }
 
     /// Returns a reference to the sub-article with the given id if it exists
@@ -123,5 +134,18 @@ impl IndexMut<&str> for ArticleSidebarData {
     fn index_mut(&mut self, index: &str) -> &mut Self::Output {
         let id = self.id.clone();
         self.get_mut(index).unwrap_or_else(|| panic!("Metadata of the article with the id '{id}' has no sub-article with the id '{index}'"))
+    }
+}
+
+fn yaml_type_to_name(val: &serde_yaml::Value) -> &'static str {
+    use serde_yaml::Value;
+    match val {
+        Value::Null => "null",
+        Value::Bool(_) => "a boolean",
+        Value::Number(_) => "a number",
+        Value::String(_) => "a string",
+        Value::Sequence(_) => "a sequence",
+        Value::Mapping(_) => "a mapping",
+        Value::Tagged(_) => "a tagged value",
     }
 }
