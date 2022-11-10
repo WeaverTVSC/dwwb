@@ -33,7 +33,7 @@ Once I think this is stable enough I'll publish it as a crate to [crates.io](htt
 To download and install the latest version from github with Cargo you need to run the following command:
 
 ```
-cargo install --git https://github.com/DreamweaverOI/dwwb
+cargo install --git https://github.com/WeaverTVSC/dwwb
 ```
 
 
@@ -155,5 +155,11 @@ To get a comprehensive understanding of how the pandoc markdown differs from oth
     * A backslash followed by a newline becomes a hard line break, eg. a line like `Hello world!\` becomes `<p>Hello world!<br>...</p>`.
 
 
-## License
-This is free software and released under the GNU General Public License version 3 or greater.
+## Legal
+Copyright 2022 WeaverTVSC (<weaver.imaginarium@proton.me>).
+
+This is free software and provided "as is" without warranty of any kind.
+
+Dwwb is released under the GNU General Public License version 3 or greater.
+
+A copy of the GPLv3 license has been included in the file COPYING.
