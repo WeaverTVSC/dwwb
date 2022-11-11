@@ -58,6 +58,8 @@ pub fn create_new(path: &Path) -> Result<(), String> {
             toc_title: "Table of Contents".to_string(),
             toc_depth: 3,
             output_dir: PathBuf::from("html"),
+            math_renderer: None,
+            debug_pandoc_cmd: false,
         },
     )
     .map_err(|e| format!("Error while writing the configuration file: {e}"))?;

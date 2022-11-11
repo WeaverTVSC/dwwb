@@ -170,9 +170,9 @@ pub fn build_project(cfg: Cfg, args: Args) -> Result<(), String> {
         "serializing the defaults file"
     );
 
-    let pandoc_options = {
+    let mut pandoc_options = {
         use PandocOption::*;
-        [
+        vec![
             Defaults(defaults_file.path().to_path_buf()),
             Template(article_template_file),
             Css(cfg.css.clone()),
@@ -184,13 +184,16 @@ pub fn build_project(cfg: Cfg, args: Args) -> Result<(), String> {
                 Some(cfg.sub_articles_title.to_string()),
             ),
             Var("toc-title".to_string(), Some(cfg.toc_title.to_string())),
-            Var("script-file".to_string(), Some(cfg.script)),
+            Var("script-file".to_string(), Some(cfg.script.clone())),
         ]
     };
+    if let Some(renderer) = &cfg.math_renderer {
+        pandoc_options.push(renderer.to_pandoc_option())
+    }
 
     args.msg("Processing articles with pandoc...");
     let outputs = uw!(
-        pandoc_write(&args, &pandoc_options, &articles_root),
+        pandoc_write(&cfg, &args, &pandoc_options, &articles_root),
         "writing articles with pandoc"
     );
     args.msg(format!("---\n{} files processed.", outputs.len()));
@@ -199,11 +202,13 @@ pub fn build_project(cfg: Cfg, args: Args) -> Result<(), String> {
 }
 
 fn pandoc_write(
+    cfg: &Cfg,
     args: &Args,
     options: &[PandocOption],
     root: &ArticleSidebarData,
 ) -> Result<Vec<PandocOutput>, String> {
     fn pandoc_write_recursive(
+        cfg: &Cfg,
         args: &Args,
         options: &[PandocOption],
         node: &ArticleSidebarData,
@@ -247,25 +252,34 @@ fn pandoc_write(
                 .set_variable("base-url", &root_url)
                 .add_input(&md_path)
                 .set_output(pandoc::OutputKind::File(html_path.to_path_buf()))
-                .add_filter(variable_replacer_filter(root_url));
+                .add_filter(variable_replacer_filter(root_url))
+                .set_show_cmdline(cfg.debug_pandoc_cmd);
 
             let dir_path = html_path.parent().unwrap();
             std::fs::create_dir_all(dir_path)
                 .map_err(|e| format!("Failed to create the path '{}': {e}", dir_path.display()))?;
 
+            if cfg.debug_pandoc_cmd {
+                // make the process output clearer if the pandoc output is being output
+                print!("---\n\n  Pandoc invocations:\n")
+            }
             outputs.push(pd.execute().map_err(|e| format!("pandoc error: {e}"))?);
+
+            if cfg.debug_pandoc_cmd {
+                args.msg("");
+            }
             args.msg(format!("Processed \"{}\"", md_path.display()));
         }
 
         // generate all of the child articles
         for n in &node.sub_articles {
-            pandoc_write_recursive(args, options, n, depth + 1, outputs)?;
+            pandoc_write_recursive(cfg, args, options, n, depth + 1, outputs)?;
         }
         Ok(())
     }
 
     let mut outputs = Vec::new();
-    pandoc_write_recursive(args, options, root, -1, &mut outputs)?;
+    pandoc_write_recursive(cfg, args, options, root, -1, &mut outputs)?;
     Ok(outputs)
 }
 

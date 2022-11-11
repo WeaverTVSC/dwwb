@@ -83,6 +83,32 @@ The current keys of `dwwb.yaml` are:
 * `output_dir`
     * Default: `html`
     * The path to the output directory for the built html version
+* `math_renderer`
+    * Optional
+    * The math rendering for rendering tex math between dollar signs, or double-dollar signs
+        * <https://pandoc.org/MANUAL.html#extension-tex_math_dollars>
+    * Has fields `engine`, and optional field `url` for the url of the engine if you don't want to use the default one
+        * Possible engines:
+            * [`mathjax`](https://www.mathjax.org/)
+                * A javascript library which renders MathML, TeX, and ASCIImath inputs
+            * `mathml`
+            * `webtex`
+            * [`katex`](https://katex.org/)
+                * A fast javascript library which renders a limited subset of LaTeX's markup
+            * [`gladtex`](https://humenda.github.io/GladTeX/)
+                * A preprocessor software for LaTeX markup
+                * Must be installed first
+                * Being an offline binary application, does not allow the `url` field
+    * Example `math_renderer` value for using the default online KaTeX-engine:
+
+        * ```yaml
+          math_renderer:
+            engine: katex
+          ```
+
+* `debug_pandoc_cmd`
+    * Optional, default: `false`
+    * Whether to print the pandoc commandline invocation
 
 
 ## Writing articles

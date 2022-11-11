@@ -23,6 +23,35 @@ pub struct Cfg {
     toc_title: String,
     toc_depth: u32,
     output_dir: PathBuf,
+    #[serde(default)]
+    math_renderer: Option<MathRenderer>,
+    /// A debug option to print out pandoc's output
+    #[serde(default)]
+    debug_pandoc_cmd: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase", tag = "engine", content = "url")]
+pub enum MathRenderer {
+    MathJax(Option<String>),
+    MathMl(Option<String>),
+    WebTex(Option<String>),
+    KaTeX(Option<String>),
+    GladTeX,
+}
+
+impl MathRenderer {
+    /// Converts this setting to a pandoc option
+    pub fn to_pandoc_option(&self) -> pandoc::PandocOption {
+        use MathRenderer::*;
+        match self.clone() {
+            MathJax(url) => pandoc::PandocOption::MathJax(url),
+            MathMl(url) => pandoc::PandocOption::MathML(url),
+            WebTex(url) => pandoc::PandocOption::WebTex(url),
+            KaTeX(url) => pandoc::PandocOption::Katex(url),
+            GladTeX => pandoc::PandocOption::GladTex,
+        }
+    }
 }
 
 /// Builds a html wiki from the given markdown content with pandoc.
