@@ -85,20 +85,25 @@ The current keys of `dwwb.yaml` are:
     * The path to the output directory for the built html version
 * `math_renderer`
     * Optional
-    * The math rendering for rendering tex math between dollar signs, or double-dollar signs
+    * The math rendering for rendering TeX math between dollar signs, or double-dollar signs
         * <https://pandoc.org/MANUAL.html#extension-tex_math_dollars>
     * Has fields `engine`, and optional field `url` for the url of the engine if you don't want to use the default one
         * Possible engines:
             * [`mathjax`](https://www.mathjax.org/)
-                * A javascript library which renders MathML, TeX, and ASCIImath inputs
-            * `mathml`
-            * `webtex`
+                * A JavaScript library which renders MathML, TeX, and ASCIImath inputs
+                * Embedded to the output HTML files from online by default
+            * [`mathml`](https://pandoc.org/MANUAL.html#option--mathml)
+                * Converts TeX code to MathML
+                * MathML is not natively supported by every browser
+            * [`webtex`](https://pandoc.org/MANUAL.html#option--webtex)
+                * Converts TeX code to `<img>` tags
             * [`katex`](https://katex.org/)
-                * A fast javascript library which renders a limited subset of LaTeX's markup
+                * A fast JavaScript library which renders a limited subset of LaTeX's markup
+                * Embedded to the output HTML files from online by default
             * [`gladtex`](https://humenda.github.io/GladTeX/)
-                * A preprocessor software for LaTeX markup
-                * Must be installed first
-                * Being an offline binary application, does not allow the `url` field
+                * A preprocessor software for converting LaTeX markup to images
+                * Must be installed locally before running dwwb
+                * Being an offline Python application, does not allow the `url` field
     * Example `math_renderer` value for using the default online KaTeX-engine:
 
         * ```yaml
