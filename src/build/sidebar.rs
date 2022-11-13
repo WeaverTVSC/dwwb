@@ -8,7 +8,7 @@ use globwalk::DirEntry;
 use regex::Regex;
 use serde::Serialize;
 
-use crate::Cfg;
+use crate::config::DwwbConfig;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
 pub struct ArticleSidebarData {
@@ -24,8 +24,8 @@ pub struct ArticleSidebarData {
 impl ArticleSidebarData {
     /// Generates the data needed for the sidebar from the yaml metadata block of the given article
     ///
-    /// Will not set the `sub_articles` member.
-    pub fn from_article_meta(cfg: &Cfg, entry: DirEntry) -> Result<Self, String> {
+    /// Will not set the `sub_articles` field.
+    pub fn from_article_meta(cfg: &DwwbConfig, entry: DirEntry) -> Result<Self, String> {
         let mut file =
             File::open(entry.path()).map_err(|e| format!("Error opening a file: {e}"))?;
         let mut contents = String::new();

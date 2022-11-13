@@ -12,11 +12,12 @@ use regex::Regex;
 use serde_yaml::Mapping;
 use tempfile::{NamedTempFile, TempDir};
 
-use crate::{uw, Args, Cfg, CFG_FILENAME};
+use crate::config::{DwwbConfig, CFG_FILENAME};
+use crate::{uw, Args};
 use filter::*;
 use sidebar::ArticleSidebarData;
 
-pub fn build_project(cfg: Cfg, args: Args) -> Result<(), String> {
+pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
     let input_walker = uw!(
         globwalk::GlobWalkerBuilder::from_patterns(
             ".",
@@ -202,13 +203,13 @@ pub fn build_project(cfg: Cfg, args: Args) -> Result<(), String> {
 }
 
 fn pandoc_write(
-    cfg: &Cfg,
+    cfg: &DwwbConfig,
     args: &Args,
     options: &[PandocOption],
     root: &ArticleSidebarData,
 ) -> Result<Vec<PandocOutput>, String> {
     fn pandoc_write_recursive(
-        cfg: &Cfg,
+        cfg: &DwwbConfig,
         args: &Args,
         options: &[PandocOption],
         node: &ArticleSidebarData,
@@ -284,7 +285,7 @@ fn pandoc_write(
 }
 
 fn read_md_file(
-    cfg: &Cfg,
+    cfg: &DwwbConfig,
     entry: DirEntry,
     dirs_to_metadatas: &mut HashMap<PathBuf, Vec<ArticleSidebarData>>,
 ) -> Result<(), String> {

@@ -2,7 +2,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::{fs, fs::File, path::Path};
 
-use crate::{Cfg, CFG_FILENAME};
+use crate::config::{DwwbConfig, CFG_FILENAME};
 
 /// Creates a new wiki project
 pub fn create_new(path: &Path) -> Result<(), String> {
@@ -49,7 +49,7 @@ pub fn create_new(path: &Path) -> Result<(), String> {
 
     serde_yaml::to_writer(
         cfg,
-        &Cfg {
+        &DwwbConfig {
             name,
             index: "index.md".to_string(),
             css: "style.css".to_string(),

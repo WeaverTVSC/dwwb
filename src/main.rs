@@ -1,58 +1,15 @@
 mod build;
+mod config;
 mod new;
 
-use std::fs::File;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
-use serde::{Deserialize, Serialize};
 
 use build::build_project;
+use config::DwwbConfig;
 use new::create_new;
-
-pub const CFG_FILENAME: &str = "dwwb.yaml";
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Cfg {
-    name: String,
-    index: String,
-    css: String,
-    script: String,
-    sub_articles_title: String,
-    toc_title: String,
-    toc_depth: u32,
-    output_dir: PathBuf,
-    #[serde(default)]
-    math_renderer: Option<MathRenderer>,
-    /// A debug option to print out pandoc's output
-    #[serde(default)]
-    debug_pandoc_cmd: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase", tag = "engine", content = "url")]
-pub enum MathRenderer {
-    MathJax(Option<String>),
-    MathMl(Option<String>),
-    WebTex(Option<String>),
-    KaTeX(Option<String>),
-    GladTeX,
-}
-
-impl MathRenderer {
-    /// Converts this setting to a pandoc option
-    pub fn to_pandoc_option(&self) -> pandoc::PandocOption {
-        use MathRenderer::*;
-        match self.clone() {
-            MathJax(url) => pandoc::PandocOption::MathJax(url),
-            MathMl(url) => pandoc::PandocOption::MathML(url),
-            WebTex(url) => pandoc::PandocOption::WebTex(url),
-            KaTeX(url) => pandoc::PandocOption::Katex(url),
-            GladTeX => pandoc::PandocOption::GladTex,
-        }
-    }
-}
 
 /// Builds a html wiki from the given markdown content with pandoc.
 ///
@@ -120,7 +77,7 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
-        Build => match get_conf() {
+        Build => match DwwbConfig::from_file(None) {
             Ok(cfg) => {
                 if let Err(e) = build_project(cfg, args) {
                     eprintln!("Build error: {e}");
@@ -134,7 +91,7 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
-        Clean => match get_conf() {
+        Clean => match DwwbConfig::from_file(None) {
             Ok(cfg) => {
                 args.msg(format!(
                     "Removing the output directory '{}'...",
@@ -154,17 +111,4 @@ fn main() -> ExitCode {
             }
         },
     }
-}
-
-fn get_conf() -> Result<Cfg, String> {
-    if !PathBuf::from(CFG_FILENAME).exists() {
-        return Err(format!("No configuration file '{CFG_FILENAME}' found!"));
-    }
-
-    let cfg = uw!(File::open(CFG_FILENAME), "reading the configuration file");
-    let cfg = uw!(
-        serde_yaml::from_reader(cfg),
-        "deserializing the configuration file"
-    );
-    Ok(cfg)
 }
