@@ -103,6 +103,7 @@ The current keys of `dwwb.yaml` are:
             * [`gladtex`](https://humenda.github.io/GladTeX/)
                 * A preprocessor software for converting LaTeX markup to images
                 * Must be installed locally before running dwwb
+                * Not yet properly implemented, you'll have to run GladTeX on the resulting files by yourself
                 * Being an offline Python application, does not allow the `url` field
     * Example `math_renderer` value for using the default online KaTeX-engine:
 
