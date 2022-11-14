@@ -59,18 +59,59 @@ The current keys of `dwwb.yaml` are:
 
 * `name`
     * The name of the wiki
-* `index`
-    * Default: `index.md`
-    * The name of the index article
-    * There should be only one article with this name in the project, and it should be at the same directory as `dwwb.yaml`
-* `css`
-    * Default: `style.css`
-    * The path to the stylesheet
-    * The given stylesheet will be used on all generated html files
-* `script`
-    * Default: `main.js`
-    * The path to the script file
-    * The given file will be included in all generated html files
+* `inputs`
+    * All the paths and path globs of the files that will be processed or copied into the final build
+        * The globs contain the path to the base directory, followed by a list of glob patterns
+    * The glob patterns follow the [.gitignore syntax](https://git-scm.com/docs/gitignore#_pattern_format)
+    * `index`
+        * Default: `index.md`
+        * The path of the index article
+    * `style`
+        * Default: `style.css`
+        * The path to the stylesheet
+        * The given stylesheet will be used on all generated html files
+    * `articles`
+        * Default:
+
+        * ```yaml
+          articles:
+            base: articles
+            patterns:
+            - '**/*.{md,markdown}'
+          ```
+
+        * The input folder for markdown articles
+    * `scripts`
+        * Default:
+
+        * ```yaml
+          articles:
+            base: scripts
+            patterns:
+            - '**/*.js'
+          ```
+
+        * The input folder of script files to include within `<script>` tags into each generated html file
+    * Any other input folders
+        * You can have arbitrary input directories with their own patterns by using the same syntax as the above `articles` and `scripts` folders have
+        * The names/keys of the input directories need to match exactly to their counterparts in the `outputs`
+* `outputs`
+    * All the paths for the files outputted by the `build` command
+    * `root`
+        * Default: `html`
+        * The root directory for all of the other output paths
+        * All of the other output paths are relative to this
+    * `style`
+        * Default: `style.css`
+        * The output file for the stylesheet
+    * `articles`
+        * Default: `articles`
+        * The output directory for the generated html articles
+    * `scripts`
+        * Default: `scripts`
+        * The output directory for the copied script files
+    * Any other output folders
+        * The keys must match their counterparts in the `inputs`
 * `articles-title`
     * Default: `Articles`
     * The title of the list of sub-articles in the sidebar
@@ -83,9 +124,6 @@ The current keys of `dwwb.yaml` are:
 * `toc-depth`
     * Default: `3`
     * The depth of how many articles deep the sidebar table of contents shows
-* `output-dir`
-    * Default: `html`
-    * The path to the output directory for the built html version
 * `math-renderer`
     * Optional
     * The math rendering for rendering TeX math between dollar signs, or double-dollar signs
@@ -94,25 +132,25 @@ The current keys of `dwwb.yaml` are:
         * Possible engines:
             * [`mathjax`](https://www.mathjax.org/)
                 * A JavaScript library which renders MathML, TeX, and ASCIImath inputs
-                * Embedded to the output HTML files from online by default
+                * Adds an online reference to the script by-default, which is not suitable for a fully offline wiki
             * [`mathml`](https://pandoc.org/MANUAL.html#option--mathml)
                 * Converts TeX code to MathML
-                * MathML is not natively supported by every browser
+                * MathML is not supported natively by every browser
             * [`webtex`](https://pandoc.org/MANUAL.html#option--webtex)
                 * Converts TeX code to `<img>` tags
             * [`katex`](https://katex.org/)
                 * A fast JavaScript library which renders a limited subset of LaTeX's markup
-                * Embedded to the output HTML files from online by default
+                * Adds an online reference to the script by-default, which is not suitable for a fully offline wiki
             * [`gladtex`](https://humenda.github.io/GladTeX/)
                 * A preprocessor software for converting LaTeX markup to images
                 * Must be installed locally before running dwwb
                 * Not yet properly implemented, you'll have to run GladTeX on the resulting files by yourself
                 * Being an offline Python application, does not allow the `url` field
-    * Example `math_renderer` value for using the default online KaTeX-engine:
+    * Example `math_renderer` value for using the default online MathJax-engine:
 
         * ```yaml
           math_renderer:
-            engine: katex
+            engine: mathjax
           ```
 
 * `debug-pandoc-cmd`
@@ -122,15 +160,13 @@ The current keys of `dwwb.yaml` are:
 
 ## Writing articles
 
-Articles are written by using the [pandoc flavored markdown syntax](https://pandoc.org/MANUAL.html#pandocs-markdown).
+Articles are written with [pandoc flavored markdown syntax](https://pandoc.org/MANUAL.html#pandocs-markdown).
 
-The file extension of the articles must be either `.md` or `.markdown`.
-
-An article can have sub-articles if they're in a folder with the same name as the main article.
-The index article is an exception.
+An article can have sub-articles if they're in a directory with the same name as the main article (without the file extension).
+The index article is an exception, as all the top-level files in the input articles directory are its sub-articles.
 
 By default all of the URLs in the markdown files are local to the directory they're located in.
-If you want to refer to the root of the wiki, there is a special pandoc filter that's executed for all articles which replaces all occurrences of the string `%ROOT%` with the path to the root directory.
+If you want to refer to the root of the wiki, there is a special pandoc filter that's executed for all articles which replaces all occurrences of the string `%ROOT%` with the local URL path to the root directory, ie. `%ROOT%/img/pic.png` would become `../../img/pic.png` if it was used in an article 2 directories down from the root output directory.
 
 
 ### The article metadata
