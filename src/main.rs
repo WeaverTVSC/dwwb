@@ -1,6 +1,7 @@
 mod build;
 mod config;
 mod new;
+mod util;
 
 use std::path::PathBuf;
 use std::process::ExitCode;

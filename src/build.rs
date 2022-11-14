@@ -13,10 +13,12 @@ use serde_yaml::Mapping;
 use tempfile::{NamedTempFile, TempDir};
 
 use crate::config::DwwbConfig;
+use crate::util::path_to_url;
 use crate::{uw, Args};
 use filter::*;
 use sidebar::ArticleSidebarData;
 
+/// Performs the `build` command
 pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
     cfg.outputs.ensure_exists()?;
 
@@ -91,7 +93,7 @@ pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
     // construct the map
     for article_res in article_walker {
         let entry = uw!(article_res, "traversing the article directory");
-        read_md_file(&cfg, entry.path(), &mut dirs_to_sb_data)?
+        read_md_article(&cfg, entry.path(), &mut dirs_to_sb_data)?
     }
 
     // transform the sidebar data map into a tree
@@ -181,6 +183,7 @@ pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
     defaults_data.insert(
         "variables".into(),
         Mapping::from_iter([
+            val_pair("articles-title", &cfg.articles_title),
             val_pair("sub-articles-title", &cfg.sub_articles_title),
             val_pair("toc-title", &cfg.toc_title),
             val_pair("sidebar-data", &articles_root),
@@ -239,14 +242,16 @@ fn pandoc_write(
             let root_url = "../".repeat(depth.max(0) as usize);
 
             let mut defaults_data = Mapping::new();
-            defaults_data.insert(
-                "variables".into(),
-                Mapping::from_iter([(
-                    "current-sub-articles".into(),
-                    serde_yaml::to_value(&node.sub_articles).unwrap(),
-                )])
-                .into(),
-            );
+            if !node.sub_articles.is_empty() && depth > 0 {
+                defaults_data.insert(
+                    "variables".into(),
+                    Mapping::from_iter([(
+                        "current-sub-articles".into(),
+                        serde_yaml::to_value(&node.sub_articles).unwrap(),
+                    )])
+                    .into(),
+                );
+            }
 
             let article_defaults = NamedTempFile::new().map_err(|e| {
                 format!(
@@ -298,11 +303,14 @@ fn pandoc_write(
     }
 
     let mut outputs = Vec::new();
-    pandoc_write_recursive(cfg, args, options, root, -1, &mut outputs)?;
+    pandoc_write_recursive(cfg, args, options, root, 0, &mut outputs)?;
     Ok(outputs)
 }
 
-fn read_md_file(
+/// Reads a markdown article and puts it to the given map
+///
+/// Uses the parent root as the key, with the articles directory prefix stripped off.
+fn read_md_article(
     cfg: &DwwbConfig,
     path: &Path,
     dirs_to_sidebar_data: &mut HashMap<PathBuf, Vec<ArticleSidebarData>>,
@@ -311,32 +319,14 @@ fn read_md_file(
     let parent = path.parent().map(ToOwned::to_owned).unwrap_or_default();
 
     dirs_to_sidebar_data
-        .entry(parent)
+        .entry(
+            parent
+                .strip_prefix(cfg.inputs.articles_dir())
+                .unwrap()
+                .to_path_buf(),
+        )
         .or_default()
         .push(sb_data);
 
     Ok(())
-}
-
-fn path_to_url<P: AsRef<Path>>(path: P) -> String {
-    let path = path.as_ref();
-
-    let mut it = path.components();
-    if let Some(comp) = it.next() {
-        let mut output = String::from(
-            comp.as_os_str()
-                .to_str()
-                .expect("Invalid UTF in input path"),
-        );
-        for comp in it {
-            output += "/";
-            output += comp
-                .as_os_str()
-                .to_str()
-                .expect("Invalid UTF in input path");
-        }
-        output
-    } else {
-        String::new()
-    }
 }

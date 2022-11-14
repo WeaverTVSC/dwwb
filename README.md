@@ -71,19 +71,22 @@ The current keys of `dwwb.yaml` are:
     * Default: `main.js`
     * The path to the script file
     * The given file will be included in all generated html files
-* `sub_articles_title`
+* `articles-title`
+    * Default: `Articles`
+    * The title of the list of sub-articles in the sidebar
+* `sub-articles-title`
     * Default: `Sub-Articles`
     * The title of the list of sub-articles in the sidebar
-* `toc_title`
+* `toc-title`
     * Default: `Table of Contents`
     * The title of the table of contents in the sidebar
-* `toc_depth`
+* `toc-depth`
     * Default: `3`
     * The depth of how many articles deep the sidebar table of contents shows
-* `output_dir`
+* `output-dir`
     * Default: `html`
     * The path to the output directory for the built html version
-* `math_renderer`
+* `math-renderer`
     * Optional
     * The math rendering for rendering TeX math between dollar signs, or double-dollar signs
         * <https://pandoc.org/MANUAL.html#extension-tex_math_dollars>
@@ -112,7 +115,7 @@ The current keys of `dwwb.yaml` are:
             engine: katex
           ```
 
-* `debug_pandoc_cmd`
+* `debug-pandoc-cmd`
     * Optional, default: `false`
     * Whether to print the pandoc commandline invocation
 

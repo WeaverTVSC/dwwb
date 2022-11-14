@@ -12,10 +12,12 @@ use crate::uw;
 pub const CFG_FILENAME: &str = "dwwb.yaml";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct DwwbConfig {
     pub name: String,
     pub inputs: DwwbInputs,
     pub outputs: DwwbOutputs,
+    pub articles_title: String,
     pub sub_articles_title: String,
     pub toc_title: String,
     pub toc_depth: u32,
@@ -86,6 +88,7 @@ impl Default for DwwbConfig {
             name: String::new(),
             inputs: Default::default(),
             outputs: Default::default(),
+            articles_title: "Articles".to_string(),
             sub_articles_title: "Sub-Articles".to_string(),
             toc_title: "Table of Contents".to_string(),
             toc_depth: 3,
@@ -96,6 +99,7 @@ impl Default for DwwbConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct DwwbInputs {
     /// The path to the index file
     index: PathBuf,
@@ -184,6 +188,7 @@ impl Default for DwwbInputs {
 
 /// The set of output paths that matches the input
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct DwwbOutputs {
     /// The root output directory
     ///

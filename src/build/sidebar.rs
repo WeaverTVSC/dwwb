@@ -8,8 +8,11 @@ use regex::Regex;
 use serde::Serialize;
 
 use crate::config::DwwbConfig;
+use crate::util::path_to_url;
+use crate::uw;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct ArticleSidebarData {
     pub id: String,
     pub title: String,
@@ -25,32 +28,24 @@ impl ArticleSidebarData {
     ///
     /// Will not set the `sub_articles` field.
     pub fn from_article_meta(cfg: &DwwbConfig, md_path: &Path) -> Result<Self, String> {
-        let mut file = File::open(md_path).map_err(|e| format!("Error opening a file: {e}"))?;
+        let mut file = uw!(
+            File::open(md_path),
+            format!("opening file '{}'", md_path.display())
+        );
         let mut contents = String::new();
-        file.read_to_string(&mut contents)
-            .map_err(|e| format!("Error reading a file: {e}"))?;
+        uw!(
+            file.read_to_string(&mut contents),
+            format!("reading file '{}'", md_path.display())
+        );
 
         let html_path = cfg.outputs.root().join(md_path).with_extension("html");
-
-        // transform the path to an url
-        let mut link_it = html_path.components().skip(1); // skip the root folder
-        let mut link_url = link_it
-            .next()
-            .map(|c| c.as_os_str().to_str().unwrap())
-            .unwrap_or_default()
-            .to_string();
-
-        for comp in link_it {
-            link_url += "/";
-            link_url += comp.as_os_str().to_str().unwrap();
-        }
 
         let r = Regex::new(r"(?msx)(?:\A|\r?\n\r?\n)(---\s*?$.*?)^(?:---|\.\.\.)\s*?$").unwrap();
         let metadata_string = r
             .captures(&contents)
             .and_then(|c| c.get(1)) // chop off the end lines/dots
             .ok_or(format!(
-                "'{}': Expected a YAML metadata block at the start of the document",
+                "Expected a YAML metadata block at the start of the file '{}'",
                 md_path.display()
             ))?
             .as_str();
@@ -59,7 +54,7 @@ impl ArticleSidebarData {
             serde_yaml::from_str(metadata_string).map_err(|e| format!("{e}"))?;
         if !metadata.contains_key("title") {
             return Err(format!(
-                "No `title` in the YAML metadata block of file '{}'",
+                "No `title` in the YAML metadata block of the file '{}'",
                 md_path.display()
             ));
         }
@@ -74,7 +69,7 @@ impl ArticleSidebarData {
                 title: title.to_string(),
                 md_file_path: Some(md_path.to_path_buf()),
                 html_file_path: Some(html_path.to_path_buf()),
-                link_url: url_escape::encode_fragment(&link_url).to_string(),
+                link_url: url_escape::encode_fragment(&path_to_url(html_path.strip_prefix(cfg.outputs.root()).unwrap())).to_string(),
                 keywords: match metadata.get("keywords") {
                     Some(serde_yaml::Value::Sequence(seq)) => seq
                         .iter()
@@ -83,7 +78,7 @@ impl ArticleSidebarData {
                         .collect(),
                     Some(val) => {
                         return Err(format!(
-                            "Expected a YAML sequence as the `keywords` in the metadata of file '{}', instead found {}",
+                            "Expected a YAML sequence as the `keywords` in the metadata of the file '{}', instead found {}",
                             md_path.display(),
                             yaml_type_to_name(val)
                         ))
@@ -93,7 +88,7 @@ impl ArticleSidebarData {
                 sub_articles: Default::default(),
             }),
             val => Err(format!(
-                "Expected a YAML string as the `title` in the metadata of file '{}', instead found {}",
+                "Expected a YAML string as the `title` in the metadata of the file '{}', instead found {}",
                 md_path.display(),
                 yaml_type_to_name(val)
             )),
