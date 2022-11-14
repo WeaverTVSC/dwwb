@@ -69,9 +69,12 @@ fn main() -> ExitCode {
     use DwwbCommand::*;
     let args = Args::parse();
 
-    match args.subcommand {
+    match &args.subcommand {
         New { path } => match create_new(&path) {
-            Ok(()) => ExitCode::SUCCESS,
+            Ok(()) => {
+                args.msg(format!("New project created at {}", path.display()));
+                ExitCode::SUCCESS
+            }
             Err(e) => {
                 eprintln!("{e}");
                 ExitCode::FAILURE
@@ -95,9 +98,9 @@ fn main() -> ExitCode {
             Ok(cfg) => {
                 args.msg(format!(
                     "Removing the output directory '{}'...",
-                    cfg.output_dir.display()
+                    cfg.outputs.root().display()
                 ));
-                if let Err(e) = std::fs::remove_dir_all(&cfg.output_dir) {
+                if let Err(e) = std::fs::remove_dir_all(cfg.outputs.root()) {
                     eprintln!("Error while removing the output directory: {e}");
                     ExitCode::FAILURE
                 } else {

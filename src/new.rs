@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::{fs, fs::File, path::Path};
 
 use crate::config::{DwwbConfig, CFG_FILENAME};
+use crate::uw;
 
 /// Creates a new wiki project
 pub fn create_new(path: &Path) -> Result<(), String> {
@@ -16,53 +17,57 @@ pub fn create_new(path: &Path) -> Result<(), String> {
         .to_string_lossy()
         .to_string();
 
-    fs::create_dir_all(path).map_err(|e| format!("Error while creating directories: {e}"))?;
+    uw!(fs::create_dir_all(path), "creating directories");
+    uw!(
+        std::env::set_current_dir(path),
+        "changing the working directory"
+    );
 
-    let file = |filename, description| {
-        File::create(path.join(filename))
+    let cfg = &DwwbConfig {
+        name: name.clone(),
+        ..Default::default()
+    };
+    cfg.inputs.ensure_exists()?;
+
+    let file = |filename: &Path, description| {
+        File::create(filename)
             .map_err(|e| format!("Error while creating the {description} file: {e}"))
     };
 
-    fs::create_dir(path.join("articles"))
-        .map_err(|e| format!("Error while creating the articles directory: {e}"))?;
+    let cfg_file = file(&PathBuf::from(CFG_FILENAME), "configuration")?;
+    let mut css = file(cfg.inputs.style(), "stylesheet")?;
+    let _script = file(&cfg.inputs.scripts_dir().join("main.js"), "script")?;
+    let mut index = file(&PathBuf::from("index.md"), "index")?;
+    let mut article = file(
+        &cfg.inputs.articles_dir().join("example.md"),
+        "example article",
+    )?;
 
-    let cfg = file(CFG_FILENAME, "configuration")?;
-    let mut css = file("style.css", "stylesheet")?;
-    let _script = file("main.js", "script")?;
-    let mut index = file("index.md", "index")?;
-    let mut article = file("articles/example.md", "example article")?;
+    uw!(
+        css.write_all(include_bytes!("include/style.css")),
+        "writing the style file"
+    );
 
-    css.write_all(include_bytes!("include/style.css"))
-        .map_err(|e| format!("Error while writing the style file: {e}"))?;
+    uw!(
+        write!(
+            index,
+            "---\n# Pandoc metadata\ntitle: {name}\nkeywords:\n- site\n---\n\nHello world!\n",
+        ),
+        "writing the index file"
+    );
 
-    write!(
-        index,
-        "---\n# Pandoc metadata\ntitle: {name}\nkeywords:\n- site\n---\n\nHello world!\n",
-    )
-    .map_err(|e| format!("Error while writing the index file: {e}"))?;
+    uw!(
+        write!(
+            article,
+            "---\n# Pandoc metadata\ntitle: Example\nkeywords: []\n---\n\nExample article.\n",
+        ),
+        "writing the example article"
+    );
 
-    write!(
-        article,
-        "---\n# Pandoc metadata\ntitle: Example\nkeywords: []\n---\n\nTest.\n",
-    )
-    .map_err(|e| format!("Error while writing the example article: {e}"))?;
-
-    serde_yaml::to_writer(
-        cfg,
-        &DwwbConfig {
-            name,
-            index: "index.md".to_string(),
-            css: "style.css".to_string(),
-            script: "main.js".to_string(),
-            sub_articles_title: "Sub-Articles".to_string(),
-            toc_title: "Table of Contents".to_string(),
-            toc_depth: 3,
-            output_dir: PathBuf::from("html"),
-            math_renderer: None,
-            debug_pandoc_cmd: false,
-        },
-    )
-    .map_err(|e| format!("Error while writing the configuration file: {e}"))?;
+    uw!(
+        serde_yaml::to_writer(cfg_file, cfg),
+        "writing the configuration file"
+    );
 
     Ok(())
 }

@@ -2,9 +2,8 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::ops::{Index, IndexMut};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use globwalk::DirEntry;
 use regex::Regex;
 use serde::Serialize;
 
@@ -25,15 +24,13 @@ impl ArticleSidebarData {
     /// Generates the data needed for the sidebar from the yaml metadata block of the given article
     ///
     /// Will not set the `sub_articles` field.
-    pub fn from_article_meta(cfg: &DwwbConfig, entry: DirEntry) -> Result<Self, String> {
-        let mut file =
-            File::open(entry.path()).map_err(|e| format!("Error opening a file: {e}"))?;
+    pub fn from_article_meta(cfg: &DwwbConfig, md_path: &Path) -> Result<Self, String> {
+        let mut file = File::open(md_path).map_err(|e| format!("Error opening a file: {e}"))?;
         let mut contents = String::new();
         file.read_to_string(&mut contents)
             .map_err(|e| format!("Error reading a file: {e}"))?;
 
-        let md_path = entry.path();
-        let html_path = cfg.output_dir.join(md_path).with_extension("html");
+        let html_path = cfg.outputs.root().join(md_path).with_extension("html");
 
         // transform the path to an url
         let mut link_it = html_path.components().skip(1); // skip the root folder

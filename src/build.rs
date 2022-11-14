@@ -1,87 +1,100 @@
 mod filter;
 mod sidebar;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use globwalk::{DirEntry, FileType};
 use pandoc::{PandocOption, PandocOutput};
 use regex::Regex;
+use serde::Serialize;
 use serde_yaml::Mapping;
 use tempfile::{NamedTempFile, TempDir};
 
-use crate::config::{DwwbConfig, CFG_FILENAME};
+use crate::config::DwwbConfig;
 use crate::{uw, Args};
 use filter::*;
 use sidebar::ArticleSidebarData;
 
 pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
-    let input_walker = uw!(
-        globwalk::GlobWalkerBuilder::from_patterns(
-            ".",
-            &[
-                "/**/*",
-                &format!("!{}", CFG_FILENAME),
-                &format!("!{}/**", cfg.output_dir.display())
-            ]
-        )
-        .file_type(FileType::FILE)
-        .build(),
-        "reading the input path"
+    cfg.outputs.ensure_exists()?;
+
+    uw!(
+        std::fs::copy(
+            cfg.inputs.style(),
+            cfg.outputs.root().join(cfg.outputs.style())
+        ),
+        format!("copying the style sheet '{}'", cfg.inputs.style().display())
     );
 
-    if !cfg.output_dir.is_dir() {
-        uw!(
-            std::fs::create_dir(&cfg.output_dir),
-            "creating the output directory"
-        );
-    }
+    let article_walker = uw!(
+        cfg.inputs.articles_glob().to_glob_walker_builder().build(),
+        "parsing the articles glob"
+    );
 
-    // read all of the metadatas of the markdown files and copy all other files
-    let mut dirs_to_sb_data = HashMap::<PathBuf, Vec<ArticleSidebarData>>::new();
-    for entry_res in input_walker {
-        let entry = uw!(entry_res, "traversing the input directory");
+    let copy_walkers = Result::<BTreeMap<_, _>, _>::from_iter(
+        cfg.inputs.non_articles_glob_iter().map(|(key, glob)| {
+            Ok((
+                key,
+                (
+                    &glob.base,
+                    uw!(
+                        glob.to_glob_walker_builder().build(),
+                        format!("parsing the {key} glob")
+                    ),
+                ),
+            ))
+        }),
+    )?;
 
-        if let Some("md" | "markdown") = entry.path().extension().and_then(|s| s.to_str()) {
-            read_md_file(&cfg, entry, &mut dirs_to_sb_data)?
-        } else {
-            // copy other files
+    // the list of outputted script files
+    let mut script_files = Vec::new();
+
+    // just copy all the other files
+    for (name, (base_dir, walker)) in copy_walkers {
+        for file_res in walker {
+            let entry = uw!(file_res, "traversing the input directory");
+
             let from = entry.path();
-            let to = cfg.output_dir.join(from);
+
+            // this unwrap should be safe as the input and output keys should be equal
+            // the equality is validated after deserializing dwwb.yaml
+            let to_base = cfg
+                .outputs
+                .non_articles_dir(name)
+                .unwrap()
+                .join(from.strip_prefix(base_dir).unwrap());
+            let to = cfg.outputs.root().join(&to_base);
+
             uw!(
                 std::fs::create_dir_all(to.parent().unwrap()),
                 "creating directories"
             );
-            uw!(std::fs::copy(from, to), "copying an input file");
+            uw!(
+                std::fs::copy(from, &to),
+                format!("copying '{}' file", from.display())
+            );
+
+            if name == "scripts" {
+                script_files.push(path_to_url(to_base));
+            }
         }
     }
 
-    // transform the metadata map into a tree
-    // set the index file as tree root
-    let mut articles_root = if let Some(r) =
-        dirs_to_sb_data
-            .remove(&PathBuf::default())
-            .and_then(|files| {
-                files.into_iter().find(|meta| {
-                    if let Some(filename) = &meta
-                        .md_file_path
-                        .as_ref()
-                        .and_then(|p| p.file_name())
-                        .and_then(|p| p.to_str())
-                    {
-                        filename == &cfg.index
-                    } else {
-                        false
-                    }
-                })
-            }) {
-        r
-    } else {
-        return Err(format!("The index file, '{}', not found", cfg.index));
-    };
-    // construct the rest of the tree
+    // a map from the parent path to its articles' sidebar related data
+    let mut dirs_to_sb_data = HashMap::<PathBuf, Vec<ArticleSidebarData>>::new();
+    // the tree version of the above map
+    // uses the index file as the root
+    let mut articles_root = ArticleSidebarData::from_article_meta(&cfg, cfg.inputs.index())?;
+
+    // construct the map
+    for article_res in article_walker {
+        let entry = uw!(article_res, "traversing the article directory");
+        read_md_file(&cfg, entry.path(), &mut dirs_to_sb_data)?
+    }
+
+    // transform the sidebar data map into a tree
     for (path, meta_vec) in dirs_to_sb_data.drain() {
         // traverse the hierarchy to the correct node to add the leaves
         let mut meta_it = &mut articles_root;
@@ -156,15 +169,26 @@ pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
     let _sidebar_template_file =
         load_included_file!("include/templates/sidebar.html", "pandoc sidebar template");
 
+    /// Helper function to change things into key/value pairs
+    fn val_pair<T: Into<serde_yaml::Value>, U: Serialize>(
+        name: T,
+        value: U,
+    ) -> (serde_yaml::Value, serde_yaml::Value) {
+        (name.into(), serde_yaml::to_value(value).unwrap())
+    }
+
     let mut defaults_data = Mapping::new();
     defaults_data.insert(
         "variables".into(),
-        Mapping::from_iter([(
-            "sidebar-data".into(),
-            serde_yaml::to_value(&articles_root).unwrap(),
-        )])
+        Mapping::from_iter([
+            val_pair("sub-articles-title", &cfg.sub_articles_title),
+            val_pair("toc-title", &cfg.toc_title),
+            val_pair("sidebar-data", &articles_root),
+            val_pair("script-file", script_files),
+        ])
         .into(),
     );
+
     let defaults_file = uw!(NamedTempFile::new_in(&dir), "creating the defaults file");
     uw!(
         serde_yaml::to_writer(&defaults_file, &defaults_data),
@@ -176,16 +200,10 @@ pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
         vec![
             Defaults(defaults_file.path().to_path_buf()),
             Template(article_template_file),
-            Css(cfg.css.clone()),
+            Css(path_to_url(cfg.outputs.style())),
             Standalone,
             TableOfContents,
             TableOfContentsDepth(cfg.toc_depth),
-            Var(
-                "sub-articles-title".to_string(),
-                Some(cfg.sub_articles_title.to_string()),
-            ),
-            Var("toc-title".to_string(), Some(cfg.toc_title.to_string())),
-            Var("script-file".to_string(), Some(cfg.script.clone())),
         ]
     };
     if let Some(renderer) = &cfg.math_renderer {
@@ -286,22 +304,39 @@ fn pandoc_write(
 
 fn read_md_file(
     cfg: &DwwbConfig,
-    entry: DirEntry,
-    dirs_to_metadatas: &mut HashMap<PathBuf, Vec<ArticleSidebarData>>,
+    path: &Path,
+    dirs_to_sidebar_data: &mut HashMap<PathBuf, Vec<ArticleSidebarData>>,
 ) -> Result<(), String> {
-    let sb_data = ArticleSidebarData::from_article_meta(cfg, entry)?;
+    let sb_data = ArticleSidebarData::from_article_meta(cfg, path)?;
+    let parent = path.parent().map(ToOwned::to_owned).unwrap_or_default();
 
-    let parent = sb_data
-        .md_file_path
-        .as_ref()
-        .unwrap()
-        .strip_prefix(".")
-        .unwrap()
-        .parent()
-        .map(ToOwned::to_owned)
-        .unwrap_or_default();
-
-    dirs_to_metadatas.entry(parent).or_default().push(sb_data);
+    dirs_to_sidebar_data
+        .entry(parent)
+        .or_default()
+        .push(sb_data);
 
     Ok(())
+}
+
+fn path_to_url<P: AsRef<Path>>(path: P) -> String {
+    let path = path.as_ref();
+
+    let mut it = path.components();
+    if let Some(comp) = it.next() {
+        let mut output = String::from(
+            comp.as_os_str()
+                .to_str()
+                .expect("Invalid UTF in input path"),
+        );
+        for comp in it {
+            output += "/";
+            output += comp
+                .as_os_str()
+                .to_str()
+                .expect("Invalid UTF in input path");
+        }
+        output
+    } else {
+        String::new()
+    }
 }
