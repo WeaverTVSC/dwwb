@@ -38,7 +38,12 @@ impl ArticleSidebarData {
             format!("reading file '{}'", md_path.display())
         );
 
-        let html_path = cfg.outputs.root().join(md_path).with_extension("html");
+        let mut html_path = cfg.outputs.root().to_path_buf();
+        if let Some(parent) = cfg.outputs.articles_dir().parent() {
+            // check if the articles directory has a parent directory that is not root
+            html_path.push(parent);
+        }
+        let html_path = html_path.join(md_path).with_extension("html");
 
         let r = Regex::new(r"(?msx)(?:\A|\r?\n\r?\n)(---\s*?$.*?)^(?:---|\.\.\.)\s*?$").unwrap();
         let metadata_string = r
@@ -67,9 +72,9 @@ impl ArticleSidebarData {
                     .to_string_lossy()
                     .to_string(),
                 title: title.to_string(),
-                md_file_path: Some(md_path.to_path_buf()),
-                html_file_path: Some(html_path.to_path_buf()),
                 link_url: url_escape::encode_fragment(&path_to_url(html_path.strip_prefix(cfg.outputs.root()).unwrap())).to_string(),
+                md_file_path: Some(md_path.to_path_buf()),
+                html_file_path: Some(html_path),
                 keywords: match metadata.get("keywords") {
                     Some(serde_yaml::Value::Sequence(seq)) => seq
                         .iter()

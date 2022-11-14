@@ -71,7 +71,7 @@ fn main() -> ExitCode {
     let args = Args::parse();
 
     match &args.subcommand {
-        New { path } => match create_new(&path) {
+        New { path } => match create_new(path) {
             Ok(()) => {
                 args.msg(format!("New project created at {}", path.display()));
                 ExitCode::SUCCESS

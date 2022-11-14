@@ -165,12 +165,20 @@ impl DwwbInputs {
     ///
     /// Make sure to call inside the project directory.
     pub fn ensure_exists(&self) -> Result<(), String> {
-        let f = |p: &PathBuf| {
+        let f = |p: &Path| {
             std::fs::create_dir_all(p)
                 .map_err(|e| format!("Input directory '{}' couldn't be created: {e}", p.display()))
         };
+
+        if let Some(path) = self.index.parent() {
+            f(path)?;
+        }
+        if let Some(path) = self.style.parent() {
+            f(path)?;
+        }
         f(&self.articles.base)?;
         self.others.values().try_for_each(|glob| f(&glob.base))?;
+
         Ok(())
     }
 }
@@ -242,7 +250,7 @@ impl DwwbOutputs {
     ///
     /// Make sure to call inside the project directory.
     pub fn ensure_exists(&self) -> Result<(), String> {
-        let f = |p: &PathBuf| {
+        let f = |p: &Path| {
             std::fs::create_dir_all(p).map_err(|e| {
                 format!(
                     "Output directory '{}' couldn't be created: {e}",
@@ -250,9 +258,16 @@ impl DwwbOutputs {
                 )
             })
         };
+
         f(&self.root)?;
-        f(&self.articles)?;
-        self.others.values().try_for_each(f)?;
+        if let Some(path) = self.style.parent() {
+            f(&self.root.join(path))?;
+        }
+        f(&self.root.join(&self.articles))?;
+        self.others
+            .values()
+            .try_for_each(|pb| f(&self.root.join(pb)))?;
+
         Ok(())
     }
 }

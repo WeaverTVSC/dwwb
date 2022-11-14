@@ -30,11 +30,13 @@ pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
         format!("copying the style sheet '{}'", cfg.inputs.style().display())
     );
 
+    // pattern walkers for just the articles
     let article_walker = uw!(
         cfg.inputs.articles_glob().to_glob_walker_builder().build(),
         "parsing the articles glob"
     );
 
+    // pattern walkers for files that need to be just copied
     let copy_walkers = Result::<BTreeMap<_, _>, _>::from_iter(
         cfg.inputs.non_articles_glob_iter().map(|(key, glob)| {
             Ok((
@@ -229,17 +231,38 @@ fn pandoc_write(
     options: &[PandocOption],
     root: &ArticleSidebarData,
 ) -> Result<Vec<PandocOutput>, String> {
+    // the depth of the articles output directory
+    let articles_root_depth = cfg
+        .outputs
+        .articles_dir()
+        .parent()
+        .map(|p| p.components().count())
+        .unwrap_or(0);
+
+    let mut outputs = Vec::new();
+    pandoc_write_recursive(
+        cfg,
+        args,
+        options,
+        root,
+        0,
+        articles_root_depth,
+        &mut outputs,
+    )?;
+    return Ok(outputs);
+
     fn pandoc_write_recursive(
         cfg: &DwwbConfig,
         args: &Args,
         options: &[PandocOption],
         node: &ArticleSidebarData,
-        depth: i32,
+        depth: usize,
+        articles_root_depth: usize,
         outputs: &mut Vec<PandocOutput>,
     ) -> Result<(), String> {
         if let Some(md_path) = &node.md_file_path {
             let html_path = node.html_file_path.as_ref().unwrap();
-            let root_url = "../".repeat(depth.max(0) as usize);
+            let root_url = "../".repeat(depth.max(0) + articles_root_depth);
 
             let mut defaults_data = Mapping::new();
             if !node.sub_articles.is_empty() && depth > 0 {
@@ -297,14 +320,18 @@ fn pandoc_write(
 
         // generate all of the child articles
         for n in &node.sub_articles {
-            pandoc_write_recursive(cfg, args, options, n, depth + 1, outputs)?;
+            pandoc_write_recursive(
+                cfg,
+                args,
+                options,
+                n,
+                depth + 1,
+                articles_root_depth,
+                outputs,
+            )?;
         }
         Ok(())
     }
-
-    let mut outputs = Vec::new();
-    pandoc_write_recursive(cfg, args, options, root, 0, &mut outputs)?;
-    Ok(outputs)
 }
 
 /// Reads a markdown article and puts it to the given map
