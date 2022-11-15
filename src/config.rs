@@ -329,7 +329,10 @@ impl DirGlob {
     }
 
     /// Converts this into the builder of the actual glob walker from the `globwalk` crate
+    ///
+    /// Will only get files and no directories, regardless of the pattern
     pub fn to_glob_walker_builder(&self) -> GlobWalkerBuilder {
         GlobWalkerBuilder::from_patterns(&self.base, &self.patterns)
+            .file_type(globwalk::FileType::FILE)
     }
 }

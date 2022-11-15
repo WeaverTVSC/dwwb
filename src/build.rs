@@ -1,11 +1,12 @@
 mod filter;
 mod sidebar;
 
-use std::collections::{BTreeMap, HashMap};
-use std::fs::File;
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use globwalk::GlobWalkerBuilder;
 use pandoc::{PandocOption, PandocOutput};
 use regex::Regex;
 use serde::Serialize;
@@ -22,10 +23,28 @@ use sidebar::ArticleSidebarData;
 pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
     cfg.outputs.ensure_exists()?;
 
+    // gather the existing output files for checking what output files to delete
+    let output_file_walker = GlobWalkerBuilder::new(cfg.outputs.root(), "**")
+        .file_type(globwalk::FileType::FILE)
+        .build()
+        .unwrap();
+
+    let mut output_files_to_delete =
+        Result::<HashSet<_>, _>::from_iter(output_file_walker.map(|entry| {
+            let entry = uw!(entry, "reading the old output files");
+            Ok(entry.into_path())
+        }))?;
+
+    // copies the file, removing it from the set of files that will be removed
+    let mut copy = |from: &Path, to: &Path| {
+        output_files_to_delete.remove(to);
+        fs::copy(from, to)
+    };
+
     uw!(
-        std::fs::copy(
+        copy(
             cfg.inputs.style(),
-            cfg.outputs.root().join(cfg.outputs.style())
+            &cfg.outputs.root().join(cfg.outputs.style())
         ),
         format!("copying the style sheet '{}'", cfg.inputs.style().display())
     );
@@ -76,7 +95,7 @@ pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
                 "creating directories"
             );
             uw!(
-                std::fs::copy(from, &to),
+                copy(from, &to),
                 format!("copying '{}' file", from.display())
             );
 
@@ -91,11 +110,13 @@ pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
     // the tree version of the above map
     // uses the index file as the root
     let mut articles_root = ArticleSidebarData::from_article_meta(&cfg, cfg.inputs.index())?;
+    output_files_to_delete.remove(articles_root.html_file_path.as_ref().unwrap());
 
     // construct the map
     for article_res in article_walker {
         let entry = uw!(article_res, "traversing the article directory");
-        read_md_article(&cfg, entry.path(), &mut dirs_to_sb_data)?
+        let data = read_md_article(&cfg, entry.path(), &mut dirs_to_sb_data)?;
+        output_files_to_delete.remove(data.html_file_path.as_ref().unwrap());
     }
 
     // transform the sidebar data map into a tree
@@ -221,7 +242,40 @@ pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
         "writing articles with pandoc"
     );
     args.msg(format!("---\n{} files processed.", outputs.len()));
-    args.msg("All done");
+
+    if !output_files_to_delete.is_empty() {
+        args.msg(format!(
+            "---\nDeleting {} old file(s)...",
+            output_files_to_delete.len()
+        ));
+        for path in output_files_to_delete {
+            if let Err(e) = fs::remove_file(&path) {
+                eprintln!("Error while deleting the file '{}': {e}", path.display());
+            }
+            args.msg(format!("Deleted '{}'", path.display()));
+        }
+    }
+
+    // remove all empty directories
+    let dir_walker = GlobWalkerBuilder::new(cfg.outputs.root(), "**")
+        .file_type(globwalk::FileType::DIR)
+        .contents_first(true)
+        .build()
+        .unwrap();
+
+    for entry in dir_walker {
+        if let Ok(entry) = entry {
+            // this function removes only empty directories
+            if fs::remove_dir(entry.path()).is_ok() {
+                args.msg(format!(
+                    "Deleted the empty directory '{}'",
+                    entry.path().display()
+                ));
+            }
+        }
+    }
+
+    args.msg("---\nAll done");
     Ok(())
 }
 
@@ -337,23 +391,25 @@ fn pandoc_write(
 /// Reads a markdown article and puts it to the given map
 ///
 /// Uses the parent root as the key, with the articles directory prefix stripped off.
-fn read_md_article(
-    cfg: &DwwbConfig,
-    path: &Path,
-    dirs_to_sidebar_data: &mut HashMap<PathBuf, Vec<ArticleSidebarData>>,
-) -> Result<(), String> {
+///
+/// Returns a reference to the generated data
+fn read_md_article<'a, 'b, 'c>(
+    cfg: &'a DwwbConfig,
+    path: &'b Path,
+    dirs_to_sidebar_data: &'c mut HashMap<PathBuf, Vec<ArticleSidebarData>>,
+) -> Result<&'c ArticleSidebarData, String> {
     let sb_data = ArticleSidebarData::from_article_meta(cfg, path)?;
     let parent = path.parent().map(ToOwned::to_owned).unwrap_or_default();
 
-    dirs_to_sidebar_data
+    let entry = dirs_to_sidebar_data
         .entry(
             parent
                 .strip_prefix(cfg.inputs.articles_dir())
                 .unwrap()
                 .to_path_buf(),
         )
-        .or_default()
-        .push(sb_data);
+        .or_default();
+    entry.push(sb_data);
 
-    Ok(())
+    Ok(entry.last().unwrap())
 }
