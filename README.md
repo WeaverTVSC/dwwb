@@ -1,22 +1,29 @@
 # `dwwb`, Dreamweaver's Wiki Builder
 
 Converts a markdown wiki into a html-site.
-Running this requires for [Pandoc](https://pandoc.org/installing.html) to be installed.
+
+Running this requires for [Pandoc](https://pandoc.org/installing.html) to be downloaded and installed.
+Version 2.18 or newer should be compatible.
 
 The currently implemented subcommands are:
 
-* New
+* `help [SUBCOMMAND]`
+    * Prints out the help information either generally or of the given subcommand
+    * Can also be used with the `--help` flag, or the shorter `-h` flag for a shorter summary
+* `new PATH`
     * Creates a new empty wiki project
     * The resulting directory contains:
         * `dwwb.yaml`, the wiki configuration file
         * `index.md`, the index article
         * `articles/example.md`, an example article
-        * `main.js`, an empty script file
+        * `scripts/main.js`, an empty script file
         * `style.css`, the default stylesheet
-* Build
+* `build`
     * Converts the markdown files into html files, and copies over the other files
-* Clean
+* `clean`
     * Removes the html output directory
+* `add PATH`
+    * Adds a new article to the input article directory
 
 
 ## Installing
@@ -27,6 +34,7 @@ To build this you need to have the Rust toolchain version 1.65 or higher install
 You can find the latest version at <https://www.rust-lang.org/tools/install>.
 
 Once I think this is stable enough I'll publish it as a crate to [crates.io](https://crates.io).
+
 
 ### Installing from github
 
