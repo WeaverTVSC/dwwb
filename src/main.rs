@@ -3,14 +3,17 @@ mod config;
 mod new;
 mod util;
 
-use std::path::PathBuf;
+use std::io::Write;
 use std::process::ExitCode;
+use std::{fs::File, path::PathBuf};
 
 use clap::{Parser, Subcommand};
 
 use build::build_project;
 use config::DwwbConfig;
 use new::create_new;
+
+use crate::util::title_case;
 
 /// Builds a html wiki from the given markdown content with pandoc.
 ///
@@ -42,16 +45,27 @@ enum DwwbCommand {
     /// Creates a new example wiki project
     #[command()]
     New {
-        /// The name or full path of the new project directory
+        /// The name or path of the new project directory
         #[arg()]
         path: PathBuf,
     },
     /// Builds the wiki project into a html site
     #[command()]
     Build,
-    /// Cleans the built html site (UNIMPLEMENTED)
+    /// Cleans the built html site
     #[command()]
     Clean,
+    /// Adds a new article to the articles' input folder
+    #[command()]
+    Add {
+        /// The path of the new article file
+        ///
+        /// The file extension is optional.
+        ///
+        /// Relative to the article input folder
+        #[arg()]
+        path: PathBuf,
+    },
 }
 
 #[macro_export]
@@ -107,6 +121,43 @@ fn main() -> ExitCode {
                 } else {
                     args.msg("All done");
                     ExitCode::SUCCESS
+                }
+            }
+            Err(e) => {
+                eprintln!("Configuration error: {e}");
+                ExitCode::FAILURE
+            }
+        },
+        Add { path } => match DwwbConfig::from_file(None) {
+            Ok(cfg) => {
+                let mut path = cfg.inputs.articles_dir().join(path);
+                if path.extension().is_none() {
+                    path.set_extension("md");
+                }
+
+                if path.exists() {
+                    eprintln!("File '{}' already exists", path.display());
+                    return ExitCode::FAILURE;
+                }
+
+                match File::create(&path) {
+                    Ok(mut article) => {
+                        let title = title_case(&path.file_stem().unwrap().to_string_lossy());
+                        if let Err(e) = write!(
+                            &mut article,
+                            "---\n# Pandoc metadata\ntitle: {title}\nkeywords: []\n---\n\nText goes here.\n"
+                        ) {
+                            eprintln!("Error while writing file '{}': {e}", path.display());
+                            return ExitCode::FAILURE;
+                        }
+
+                        args.msg(format!("File '{}' created", path.display()));
+                        ExitCode::SUCCESS
+                    }
+                    Err(e) => {
+                        eprintln!("Error while creating file '{}': {e}", path.display());
+                        ExitCode::FAILURE
+                    }
                 }
             }
             Err(e) => {

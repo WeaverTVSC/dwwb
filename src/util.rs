@@ -1,5 +1,8 @@
 use std::path::Path;
 
+use lazy_static::lazy_static;
+use regex::Regex;
+
 pub fn path_to_url<P: AsRef<Path>>(path: P) -> String {
     let path = path.as_ref();
 
@@ -21,4 +24,17 @@ pub fn path_to_url<P: AsRef<Path>>(path: P) -> String {
     } else {
         String::new()
     }
+}
+
+/// Transforms the given text to title case
+pub fn title_case<S: AsRef<str>>(input: &S) -> String {
+    lazy_static! {
+        static ref WORD_START_REGEX: Regex = Regex::new(r"(?:^|\b)(\w)").unwrap();
+    }
+
+    WORD_START_REGEX
+        .replace_all(input.as_ref(), |captures: &regex::Captures| {
+            captures.get(1).unwrap().as_str().to_uppercase()
+        })
+        .to_string()
 }

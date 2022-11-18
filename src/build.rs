@@ -8,13 +8,12 @@ use std::path::{Path, PathBuf};
 
 use globwalk::GlobWalkerBuilder;
 use pandoc::{PandocOption, PandocOutput};
-use regex::Regex;
 use serde::Serialize;
 use serde_yaml::Mapping;
 use tempfile::{NamedTempFile, TempDir};
 
 use crate::config::DwwbConfig;
-use crate::util::path_to_url;
+use crate::util::{path_to_url, title_case};
 use crate::{uw, Args};
 use filter::*;
 use sidebar::ArticleSidebarData;
@@ -132,13 +131,7 @@ pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
             {
                 new_meta
             } else {
-                // convert the id to title case
-                let title = Regex::new(r"(?:^|\b)(\w)")
-                    .unwrap()
-                    .replace_all(&dir, |captures: &regex::Captures| {
-                        captures.get(1).unwrap().as_str().to_uppercase()
-                    })
-                    .to_string();
+                let title = title_case(&dir);
 
                 // create default metadata for the category
                 let idx = meta_it.sub_articles.len();
@@ -263,15 +256,13 @@ pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
         .build()
         .unwrap();
 
-    for entry in dir_walker {
-        if let Ok(entry) = entry {
-            // this function removes only empty directories
-            if fs::remove_dir(entry.path()).is_ok() {
-                args.msg(format!(
-                    "Deleted the empty directory '{}'",
-                    entry.path().display()
-                ));
-            }
+    for entry in dir_walker.flatten() {
+        // this function removes only empty directories
+        if fs::remove_dir(entry.path()).is_ok() {
+            args.msg(format!(
+                "Deleted the empty directory '{}'",
+                entry.path().display()
+            ));
         }
     }
 
