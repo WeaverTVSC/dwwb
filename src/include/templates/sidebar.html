@@ -1,17 +1,17 @@
 <nav id="links">
-  <h1><a href="$base-url$$sidebar-data.link-url$">$sidebar-data.title$</a></h1>
-  <h2>$articles-title$</h2>
-  <ul>
-    $for(sidebar-data.sub-articles)$
-    <li><a href="$base-url$$it.link-url$">$it.title$</a></li>
-    $endfor$
-  </ul>
-  $if(current-sub-articles)$
-  <h2>$sub-articles-title$</h2>
-  <ul>
-    $for(current-sub-articles)$
-    <li><a href="$base-url$$it.link-url$">$it.title$</a></li>
-    $endfor$
-  </ul>
-  $endif$
+<h1><a href="$base-url$$sidebar-data.link-url$">$sidebar-data.title$</a></h1>
+<h2>$articles-title$</h2>
+<ul>
+$for(sidebar-data.sub-articles)$
+<li><a href="$base-url$$it.link-url$">$it.title$</a></li>
+$endfor$
+</ul>
+$if(current-sub-articles)$
+<h2>$sub-articles-title$</h2>
+<ul>
+$for(current-sub-articles)$
+<li><a href="$base-url$$it.link-url$">$it.title$</a></li>
+$endfor$
+</ul>
+$endif$
 </nav>
