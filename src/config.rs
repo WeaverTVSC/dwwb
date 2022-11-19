@@ -105,6 +105,8 @@ pub struct DwwbInputs {
     index: PathBuf,
     /// The path to the stylesheet
     style: PathBuf,
+    /// The path to the pandoc template for the article
+    article_template: PathBuf,
     /// The glob for all the markdown articles
     articles: DirGlob,
     /// The globs for all other files to be included in the output
@@ -117,27 +119,33 @@ impl DwwbInputs {
     pub fn index(&self) -> &Path {
         &self.index
     }
+
     /// Returns the path to the stylesheet
     pub fn style(&self) -> &Path {
         &self.style
     }
 
-    /// Returns the articles input directory path
+    /// Returns the path of the templates directory
+    pub fn article_template(&self) -> &Path {
+        &self.article_template
+    }
+
+    /// Returns the path of the articles input directory
     pub fn articles_dir(&self) -> &Path {
         &self.articles.base
     }
 
-    /// Returns the articles input glob
+    /// Returns the glob pattern of the input articles
     pub fn articles_glob(&self) -> &DirGlob {
         &self.articles
     }
 
-    /// Returns the scripts output directory path
+    /// Returns the path of the scripts input directory
     pub fn scripts_dir(&self) -> &Path {
         &self.scripts_glob().base
     }
 
-    /// Returns the scripts output directory path
+    /// Returns the glob pattern of the input scripts
     pub fn scripts_glob(&self) -> &DirGlob {
         self.non_articles_glob("scripts").unwrap()
     }
@@ -149,14 +157,14 @@ impl DwwbInputs {
         Some(&self.non_articles_glob(key)?.base)
     }
 
-    /// Returns the input glob with the given name/key, if it exists
+    /// Returns the input glob pattern with the given name/key, if it exists
     ///
     /// The scripts glob is included, and not the articles glob.
     pub fn non_articles_glob<S: AsRef<str>>(&self, key: S) -> Option<&DirGlob> {
         self.others.get(key.as_ref())
     }
 
-    /// Returns an iterator over the named output folders and their globs
+    /// Returns an iterator over the named output folders and their glob patterns
     pub fn non_articles_glob_iter(&self) -> impl Iterator<Item = (&str, &DirGlob)> {
         self.others.iter().map(|(k, v)| (k.as_str(), v))
     }
@@ -164,7 +172,7 @@ impl DwwbInputs {
     /// Makes sure that all of the input directories exist by creating them otherwise
     ///
     /// Make sure to call inside the project directory.
-    pub fn ensure_exists(&self) -> Result<(), String> {
+    pub fn ensure_dirs_exists(&self) -> Result<(), String> {
         let f = |p: &Path| {
             std::fs::create_dir_all(p)
                 .map_err(|e| format!("Input directory '{}' couldn't be created: {e}", p.display()))
@@ -174,6 +182,9 @@ impl DwwbInputs {
             f(path)?;
         }
         if let Some(path) = self.style.parent() {
+            f(path)?;
+        }
+        if let Some(path) = self.article_template.parent() {
             f(path)?;
         }
         f(&self.articles.base)?;
@@ -188,6 +199,7 @@ impl Default for DwwbInputs {
         Self {
             index: "index.md".into(),
             style: "style.css".into(),
+            article_template: "templates/dwwb-article.html".into(),
             articles: DirGlob::new("articles", ["**/*.{md,markdown}"]),
             others: BTreeMap::from([("scripts".to_string(), DirGlob::new("scripts", ["**/*.js"]))]),
         }
@@ -224,17 +236,17 @@ impl DwwbOutputs {
         &self.style
     }
 
-    /// Returns the articles output directory path relative to the root
+    /// Returns the path of the articles output directory relative to the root
     pub fn articles_dir(&self) -> &Path {
         &self.articles
     }
 
-    /// Returns the scripts output directory path relative to the root
+    /// Returns the path of the scripts output directory relative to the root
     pub fn scripts_dir(&self) -> &Path {
         self.non_articles_dir("scripts").unwrap()
     }
 
-    /// Returns the output directory with the given name/key relative to the root, if it exists
+    /// Returns the path of the output directory with the given name/key relative to the root, if it exists
     ///
     /// The scripts directory is included, and not the articles dir.
     pub fn non_articles_dir<S: AsRef<str>>(&self, key: S) -> Option<&Path> {
@@ -249,7 +261,7 @@ impl DwwbOutputs {
     /// Makes sure that all of the output directories exist by creating them otherwise
     ///
     /// Make sure to call inside the project directory.
-    pub fn ensure_exists(&self) -> Result<(), String> {
+    pub fn ensure_dirs_exists(&self) -> Result<(), String> {
         let f = |p: &Path| {
             std::fs::create_dir_all(p).map_err(|e| {
                 format!(

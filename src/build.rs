@@ -2,15 +2,14 @@ mod filter;
 mod sidebar;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::fs::{self, File};
-use std::io::Write;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use globwalk::GlobWalkerBuilder;
 use pandoc::{PandocOption, PandocOutput};
 use serde::Serialize;
 use serde_yaml::Mapping;
-use tempfile::{NamedTempFile, TempDir};
+use tempfile::NamedTempFile;
 
 use crate::config::DwwbConfig;
 use crate::util::{path_to_url, title_case};
@@ -20,7 +19,7 @@ use sidebar::ArticleSidebarData;
 
 /// Performs the `build` command
 pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
-    cfg.outputs.ensure_exists()?;
+    cfg.outputs.ensure_dirs_exists()?;
 
     // gather the existing output files for checking what output files to delete
     let output_file_walker = GlobWalkerBuilder::new(cfg.outputs.root(), "**")
@@ -90,7 +89,7 @@ pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
             let to = cfg.outputs.root().join(&to_base);
 
             uw!(
-                std::fs::create_dir_all(to.parent().unwrap()),
+                fs::create_dir_all(to.parent().unwrap()),
                 "creating directories"
             );
             uw!(
@@ -160,33 +159,6 @@ pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
         }
     }
 
-    let dir = uw!(TempDir::new(), "creating a temporary directory");
-
-    // create the temporary files
-    macro_rules! load_included_file {
-        ($path: expr, $description: expr) => {{
-            let tmp_path = dir.path().join(Path::new($path).file_name().unwrap());
-
-            let mut output_file = uw!(
-                File::create(&tmp_path),
-                format!("creating the {} file", $description)
-            );
-            uw!(
-                output_file.write_all(include_bytes!($path)),
-                format!("writing the {} file", $description)
-            );
-            tmp_path
-        }};
-    }
-
-    let article_template_file = load_included_file!(
-        "include/templates/dwwb-article.html",
-        "pandoc article template"
-    );
-
-    let _sidebar_template_file =
-        load_included_file!("include/templates/sidebar.html", "pandoc sidebar template");
-
     /// Helper function to change things into key/value pairs
     fn val_pair<T: Into<serde_yaml::Value>, U: Serialize>(
         name: T,
@@ -208,7 +180,7 @@ pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
         .into(),
     );
 
-    let defaults_file = uw!(NamedTempFile::new_in(&dir), "creating the defaults file");
+    let defaults_file = uw!(NamedTempFile::new(), "creating the defaults file");
     uw!(
         serde_yaml::to_writer(&defaults_file, &defaults_data),
         "serializing the defaults file"
@@ -218,7 +190,7 @@ pub fn build_project(cfg: DwwbConfig, args: Args) -> Result<(), String> {
         use PandocOption::*;
         vec![
             Defaults(defaults_file.path().to_path_buf()),
-            Template(article_template_file),
+            Template(cfg.inputs.article_template().to_path_buf()),
             Css(path_to_url(cfg.outputs.style())),
             Standalone,
             TableOfContents,
@@ -348,8 +320,12 @@ fn pandoc_write(
                 .set_show_cmdline(cfg.debug_pandoc_cmd);
 
             let dir_path = html_path.parent().unwrap();
-            std::fs::create_dir_all(dir_path)
-                .map_err(|e| format!("Failed to create the path '{}': {e}", dir_path.display()))?;
+            fs::create_dir_all(dir_path).map_err(|e| {
+                format!(
+                    "Failed to create the directory '{}': {e}",
+                    dir_path.display()
+                )
+            })?;
 
             if cfg.debug_pandoc_cmd {
                 // make the process output clearer if the pandoc output is being output

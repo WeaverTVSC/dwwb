@@ -27,7 +27,7 @@ pub fn create_new(path: &Path) -> Result<(), String> {
         name: name.clone(),
         ..Default::default()
     };
-    cfg.inputs.ensure_exists()?;
+    cfg.inputs.ensure_dirs_exists()?;
 
     let file = |filename: &Path, description| {
         File::create(filename)
@@ -35,8 +35,20 @@ pub fn create_new(path: &Path) -> Result<(), String> {
     };
 
     let cfg_file = file(&PathBuf::from(CFG_FILENAME), "configuration")?;
+
     let mut css = file(cfg.inputs.style(), "stylesheet")?;
     let _script = file(&cfg.inputs.scripts_dir().join("main.js"), "script")?;
+
+    let mut article_template = file(&cfg.inputs.article_template(), "article template")?;
+    let mut sidebar_template = file(
+        &cfg.inputs
+            .article_template()
+            .parent()
+            .unwrap_or(&PathBuf::default())
+            .join("sidebar.html"),
+        "sidebar template",
+    )?;
+
     let mut index = file(&PathBuf::from("index.md"), "index")?;
     let mut article = file(
         &cfg.inputs.articles_dir().join("example.md"),
@@ -44,8 +56,21 @@ pub fn create_new(path: &Path) -> Result<(), String> {
     )?;
 
     uw!(
+        serde_yaml::to_writer(cfg_file, cfg),
+        "writing the configuration file"
+    );
+
+    uw!(
         css.write_all(include_bytes!("include/style.css")),
-        "writing the style file"
+        "writing the stylesheet file"
+    );
+    uw!(
+        article_template.write_all(include_bytes!("include/templates/dwwb-article.html")),
+        "writing the article template file"
+    );
+    uw!(
+        sidebar_template.write_all(include_bytes!("include/templates/sidebar.html")),
+        "writing the sidebar template file"
     );
 
     uw!(
@@ -62,11 +87,6 @@ pub fn create_new(path: &Path) -> Result<(), String> {
             "---\n# Pandoc metadata\ntitle: Example\nkeywords: []\n---\n\nExample article.\n",
         ),
         "writing the example article"
-    );
-
-    uw!(
-        serde_yaml::to_writer(cfg_file, cfg),
-        "writing the configuration file"
     );
 
     Ok(())

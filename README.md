@@ -78,6 +78,9 @@ The current keys of `dwwb.yaml` are:
         * Default: `style.css`
         * The path to the stylesheet
         * The given stylesheet will be used on all generated html files
+    * `article-template`
+        * Default: `templates/dwwb-article.html`
+        * The path to the pandoc template to be used with the generated articles
     * `articles`
         * Default:
 
