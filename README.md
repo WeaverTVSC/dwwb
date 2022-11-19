@@ -15,6 +15,8 @@ The currently implemented subcommands are:
     * The resulting directory contains:
         * `dwwb.yaml`, the wiki configuration file
         * `index.md`, the index article
+        * `templates/dwwb-article.html`, the article template
+        * `templates/sidebar.html`, the sidebar template
         * `articles/example.md`, an example article
         * `scripts/main.js`, an empty script file
         * `style.css`, the default stylesheet
