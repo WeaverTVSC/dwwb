@@ -25,7 +25,7 @@ The currently implemented subcommands are:
 * `clean`
     * Removes the html output directory
 * `add PATH`
-    * Adds a new article to the input article directory
+    * Creates a new markdown article with the given name and path, relative to the articles directory
 
 
 ## Installing
@@ -71,8 +71,7 @@ The current keys of `dwwb.yaml` are:
     * The name of the wiki
 * `inputs`
     * All the paths and path globs of the files that will be processed or copied into the final build
-        * The globs contain the path to the base directory, followed by a list of glob patterns
-    * The glob patterns follow the [.gitignore syntax](https://git-scm.com/docs/gitignore#_pattern_format)
+    * The glob patterns that are used follow the [.gitignore syntax](https://git-scm.com/docs/gitignore#_pattern_format)
     * `index`
         * Default: `index.md`
         * The path of the index article
@@ -86,27 +85,28 @@ The current keys of `dwwb.yaml` are:
     * `articles`
         * Default:
 
-        * ```yaml
-          articles:
-            base: articles
-            patterns:
-            - '**/*.{md,markdown}'
-          ```
+            * ```yaml
+              articles:
+                base: articles
+                patterns:
+                - '**/*.{md,markdown}'
+              ```
 
-        * The input folder for markdown articles
+        * The input directory for articles, and the glob pattern that they must match
     * `scripts`
         * Default:
 
-        * ```yaml
-          articles:
-            base: scripts
-            patterns:
-            - '**/*.js'
-          ```
+            * ```yaml
+              scripts:
+                base: scripts
+                patterns:
+                - '**/*.js'
+              ```
 
-        * The input folder of script files to include within `<script>` tags into each generated html file
-    * Any other input folders
-        * You can have arbitrary input directories with their own patterns by using the same syntax as the above `articles` and `scripts` folders have
+        * The input directory of script files, and the glob pattern that they must match
+        * They are included within `<script>` tags into the end of every generated html file
+    * Any other input directories
+        * You can have arbitrary input directories with their own glob patterns by using the same syntax as what the above `articles` and `scripts` directories have
         * The names/keys of the input directories need to match exactly to their counterparts in the `outputs`
 * `outputs`
     * All the paths for the files outputted by the `build` command
@@ -123,7 +123,7 @@ The current keys of `dwwb.yaml` are:
     * `scripts`
         * Default: `scripts`
         * The output directory for the copied script files
-    * Any other output folders
+    * Any other output directories
         * The keys must match their counterparts in the `inputs`
 * `articles-title`
     * Default: `Articles`
