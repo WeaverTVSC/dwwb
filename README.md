@@ -1,6 +1,6 @@
 # `dwwb`, Dreamweaver's Wiki Builder
 
-Converts a markdown wiki into a html-site.
+A static site generator for creating simple html sites from markdown articles using Pandoc.
 
 Running this requires for [Pandoc](https://pandoc.org/installing.html) to be downloaded and installed.
 Version 2.18 or newer should be compatible.
@@ -11,9 +11,9 @@ The currently implemented subcommands are:
     * Prints out the help information either generally or of the given subcommand
     * Can also be used with the `--help` flag, or the shorter `-h` flag for a shorter summary
 * `new PATH`
-    * Creates a new empty wiki project
+    * Creates a new empty dwwb project
     * The resulting directory contains:
-        * `dwwb.yaml`, the wiki configuration file
+        * `dwwb.yaml`, the main configuration file
         * `index.md`, the index article
         * `templates/dwwb-article.html`, the article template
         * `templates/sidebar.html`, the sidebar template
